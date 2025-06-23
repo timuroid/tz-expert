@@ -1,0 +1,27 @@
+# ——— Python ———
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+
+# ——— Virtual env / Poetry / Pipenv ———
+env/
+.venv/
+.idea/
+.vscode/
+
+# ——— Data / artifacts ———
+*.xlsx
+*.docx
+*.pdf
+*.log
+
+# ——— Secrets & config ———
+.env
+*.key
+*.pem
+
+# ——— OS / editor junk ———
+.DS_Store
+Thumbs.db
