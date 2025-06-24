@@ -11,7 +11,7 @@ from typing import List
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from models import AnalyzeRequest, AnalyzeResponse, ErrorOut, Finding, TokenStat  ### 🔧
+from models import AnalyzeRequest, AnalyzeResponse, ErrorOut, Finding, TokenStat  
 from llm import ask_llm, LLMError
 import utils                                          # опционально
 
@@ -22,13 +22,13 @@ with open("errors.yaml", encoding="utf-8") as f:
 app = FastAPI(title="TZ-Expert LLM API", version="0.3")
 
 # ---------- PROMPT-ГЕНЕРАТОРЫ ----------
-def triage_prompt(html: str, detector: str) -> List[dict]:
+def triage_prompt(html: str, rule: dict) -> List[dict]:
     """Промпт → {"exists": true/false}"""
     return [
         {"role": "system",
          "content": 'Отвечай ТОЛЬКО JSON вида {"exists":true/false}.'},
         {"role": "user", "content": f"<document>\n{html}\n</document>"},
-        {"role": "user", "content": detector}
+        {"role": "user", "content": f"Название ошибки {rule['title']}\nОписание ошибки {rule['description']}\nСпособ обнаружения ошибки {rule['detector']}"}
     ]
 
 def deep_prompt(html: str, rule: dict) -> List[dict]:
@@ -48,32 +48,33 @@ def deep_prompt(html: str, rule: dict) -> List[dict]:
     return [
         {"role": "system",
          "content": "Отвечай ТОЛЬКО JSON по образцу: " + schema},
-        {"role": "user", "content": f"<document>\n{html}\n</document>"},
-        {"role": "user", "content": rule["detector"]}
+        {"role": "user", "content": html},
+        {"role": "user", "content": f"Название ошибки {rule['title']}\nОписание ошибки {rule['description']}\nСпособ обнаружения ошибки {rule['detector']}"}
     ]
 
 # ---------- ЭНД-ПОИНТЫ ----------
 @app.get("/errors")
 async def list_rules():
     """Справочник правил (как есть)."""
-    return JSONResponse(RULES)
+    return JSONResponse(RULES)    # добавить возможность получания информации по конкретной ошибке исходя из её кода 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(req: AnalyzeRequest):
     codes = req.codes or list(RULES.keys())
 
-    # --- счётчик токенов -------------------------------------------------  ### 🔧
+    # --- счётчик токенов -------------------------------------------------  
     tokens = {"prompt": 0, "completion": 0}
 
     # TRIAGE
     async def triage(code: str):
         rule = RULES[code]
         try:
-            raw, usage = await ask_llm(triage_prompt(req.html, rule["detector"]))  ### 🔧
-            tokens["prompt"]     += usage.get("prompt_tokens", 0)                  ### 🔧
+            raw, usage = await ask_llm(triage_prompt(req.html, rule))  
+            tokens["prompt"]     += usage.get("prompt_tokens", 0)                  
             tokens["completion"] += usage.get("completion_tokens", 0) 
             return code, json.loads(raw)["exists"]
-        except Exception:
+        except Exception as exc:
+            logging.error("LLM failure on %s: %s", code, exc)
             return code, False
 
     triage_pairs = await asyncio.gather(*[triage(c) for c in codes])
@@ -83,9 +84,9 @@ async def analyze(req: AnalyzeRequest):
     async def deep(code: str):
         rule = RULES[code]
         try:
-            raw, usage = await ask_llm(deep_prompt(req.html, rule))     ### 🔧
-            tokens["prompt"]     += usage.get("prompt_tokens", 0)       ### 🔧
-            tokens["completion"] += usage.get("completion_tokens", 0)   ### 🔧
+            raw, usage = await ask_llm(deep_prompt(req.html, rule))     
+            tokens["prompt"]     += usage.get("prompt_tokens", 0)       
+            tokens["completion"] += usage.get("completion_tokens", 0)   
             data = json.loads(raw)                       # dict от LLM
             # маппинг → Pydantic
             findings = [Finding(**f) for f in data["findings"]]
@@ -103,7 +104,7 @@ async def analyze(req: AnalyzeRequest):
 
     detailed = await asyncio.gather(*[deep(c) for c in positives])
 
-     # финальный расчёт ----------------------------------------------------  ### 🔧
+     # финальный расчёт ----------------------------------------------------  
     tokens["total"] = tokens["prompt"] + tokens["completion"]
 
     logging.info("tokens_in=%s", utils.count_tokens(req.html) * len(codes))

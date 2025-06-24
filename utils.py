@@ -9,7 +9,7 @@ def count_tokens(text: str) -> int:
     Если модель не распознана tiktoken, используем универсальный
     энкодер cl100k_base, чтобы не падать с KeyError.
     """
-    model = _s.settings.openai_model          # например gpt-4.1-2025-04-14
+    model = _s.settings.llm_model          # например gpt-4.1-2025-04-14
     if model not in _enc_cache:
         try:
             _enc_cache[model] = tiktoken.encoding_for_model(model)
