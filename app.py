@@ -11,8 +11,8 @@ from typing import List
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from models import AnalyzeRequest, AnalyzeResponse, ErrorOut, Finding, TokenStat  
-from llm import ask_llm, LLMError
+from models import AnalyzeRequest, AnalyzeResponse, AnalyzeOut, Finding, TokenStat  
+from llm import (ask_llm, LLMError, TRIAGE_SYSTEM, DEEP_SYSTEM,TRIAGE_SCHEMA, DEEP_SCHEMA)
 import utils                                          # опционально
 
 # ---- Грузим YAML ----
@@ -25,31 +25,16 @@ app = FastAPI(title="TZ-Expert LLM API", version="0.3")
 def triage_prompt(html: str, rule: dict) -> List[dict]:
     """Промпт → {"exists": true/false}"""
     return [
-        {"role": "system",
-         "content": 'Отвечай ТОЛЬКО JSON вида {"exists":true/false}.'},
-        {"role": "user", "content": f"<document>\n{html}\n</document>"},
-        {"role": "user", "content": f"Название ошибки {rule['title']}\nОписание ошибки {rule['description']}\nСпособ обнаружения ошибки {rule['detector']}"}
+        {"role": "system","content": TRIAGE_SYSTEM},
+        {"role": "user", "content": f"<DOCUMENT>{html}</DOCUMENT>"},
+        {"role": "user", "content": f"'Код ошибки' : '{rule['code']}',\n'Название ошибки' : '{rule['title']}',\n'Описание ошибки' : '{rule['description']}',\n'Способ обнаружения ошибки' : '{rule['detector']}'"}
     ]
 
 def deep_prompt(html: str, rule: dict) -> List[dict]:
-    """
-    Просим строгий JSON:
-    {
-      "code":"E05","title":"…","kind":"Invalid",
-      "findings":[
-        {"paragraph":"id","quote":"цитата","advice":"…"}
-      ]
-    }
-    """
-    schema = (
-        '{"code":"%(code)s","title":"%(title)s","kind":"%(kind)s",'
-        '"findings":[{"paragraph":"","quote":"","advice":""}]}' % rule
-    )
     return [
-        {"role": "system",
-         "content": "Отвечай ТОЛЬКО JSON по образцу: " + schema},
-        {"role": "user", "content": html},
-        {"role": "user", "content": f"Название ошибки {rule['title']}\nОписание ошибки {rule['description']}\nСпособ обнаружения ошибки {rule['detector']}"}
+        {"role": "system", "content": DEEP_SYSTEM},
+        {"role": "user", "content": f"<DOCUMENT>{html}</DOCUMENT>"},
+        {"role": "user", "content": f"'Код ошибки' : '{rule['code']}',\n'Название ошибки' : '{rule['title']}',\n'Описание ошибки' : '{rule['description']}',\n'Способ обнаружения ошибки' : '{rule['detector']}'"}
     ]
 
 # ---------- ЭНД-ПОИНТЫ ----------
@@ -69,10 +54,11 @@ async def analyze(req: AnalyzeRequest):
     async def triage(code: str):
         rule = RULES[code]
         try:
-            raw, usage = await ask_llm(triage_prompt(req.html, rule))  
+            obj, usage = await ask_llm(triage_prompt(req.html, rule),
+                                       TRIAGE_SCHEMA)  
             tokens["prompt"]     += usage.get("prompt_tokens", 0)                  
             tokens["completion"] += usage.get("completion_tokens", 0) 
-            return code, json.loads(raw)["exists"]
+            return code, obj["exists"]
         except Exception as exc:
             logging.error("LLM failure on %s: %s", code, exc)
             return code, False
@@ -84,19 +70,19 @@ async def analyze(req: AnalyzeRequest):
     async def deep(code: str):
         rule = RULES[code]
         try:
-            raw, usage = await ask_llm(deep_prompt(req.html, rule))     
+            obj, usage = await ask_llm(deep_prompt(req.html, rule),
+                                       DEEP_SCHEMA)     
             tokens["prompt"]     += usage.get("prompt_tokens", 0)       
             tokens["completion"] += usage.get("completion_tokens", 0)   
-            data = json.loads(raw)                       # dict от LLM
             # маппинг → Pydantic
-            findings = [Finding(**f) for f in data["findings"]]
-            return ErrorOut(code=rule["code"],
-                            title=rule["title"],
-                            kind=rule["kind"],
+            findings = [Finding(**f) for f in obj["findings"]]
+            return AnalyzeOut(code=obj["code"],
+                            title=obj["title"],
                             findings=findings)
         except (LLMError, json.JSONDecodeError) as exc:
+            logging.error("LLM deep error %s: %s", code, exc)
             # бэкап-вариант: выводим ошибку внутрь advice
-            return ErrorOut(code=rule["code"], title=rule["title"],
+            return AnalyzeOut(code=rule["code"], title=rule["title"],
                             kind=rule["kind"],
                             findings=[Finding(paragraph="?",
                                               quote="-",

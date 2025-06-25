@@ -1,0 +1,50 @@
+{
+  "name": "deep_result",
+  "description": "Подробный отчёт о всех ошибках данного типа и местах их проявления.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+        "code":   {
+            "type": "string",
+            "pattern": "^E\\d{2}[A-Z]?$",
+            "description": "Код ошибки"
+        },
+        "title":  {
+            "type": "string",
+            "description": "Название ошибки из поля 'title' "
+        },
+        "findings": {
+            "type": "array",
+            "minItems": 0,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind":   {
+                        "type": "string",
+                        "enum": ["Invalid","Missing"],
+                        "description": "Invalid — ошибка в существующем тексте; Missing — требуемый фрагмент отсутствует в документе."
+
+                    },
+                    "paragraph": {
+                        "type": "string",
+                        "pattern": "^<p\\d{2}>$",
+                        "description": "Идентификатор абзаца в формате <pXX>, XX — двухзначный номер. Для Missing используйте фиктивное <p00>."
+                    },
+                    "quote":     {
+                        "type": "string",
+                        "description": "Полная цитата проблемного фрагмента. Для Missing передайте символ «—»."
+                    },
+                    "advice":    {
+                        "type": "string",
+                        "description": "Совет по исправлению.  Для Missing — текст, объясняющий, что надо добавить."
+                    }
+                }, 
+                "required": ["kind","paragraph", "quote", "advice"],
+                "additionalProperties": false
+            }
+        }
+    },
+    "required": ["code", "title", "findings"],
+    "additionalProperties": false
+  }
+}

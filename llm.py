@@ -6,7 +6,8 @@ llm.py
 но базовый URL и имя модели извлекаются из settings ― их легко
 заменить на альтернативный энд-пойнт/модель без правки кода.
 """
-
+import json
+from pathlib import Path
 from typing import List, Tuple
 from openai import AsyncOpenAI           # официальный клиент ≥ 1.0
 from settings import settings            # см. ниже
@@ -14,8 +15,17 @@ from settings import settings            # см. ниже
 class LLMError(RuntimeError):
     """Исключение при общении с LLM."""
 
+
+# ── Загружаем system-prompt-ы и схемы 
+PROMPT_DIR = Path(__file__).parent / "prompts"
+
+TRIAGE_SYSTEM = (PROMPT_DIR / "triage.system.txt").read_text(encoding="utf-8")
+DEEP_SYSTEM   = (PROMPT_DIR / "deep.system.txt").read_text(encoding="utf-8")
+TRIAGE_SCHEMA = json.loads((PROMPT_DIR / "triage.schema.json").read_text(encoding="utf-8"))
+DEEP_SCHEMA   = json.loads((PROMPT_DIR / "deep.schema.json").read_text(encoding="utf-8"))
+
 # ------------------------------------------------------------------
-# 1. Инициализируем единственный клиент на всё приложение
+#    Инициализируем единственный клиент на всё приложение
 #    (он потокобезопасен и переиспользует HTTP-коннекты)
 # ------------------------------------------------------------------
 client = AsyncOpenAI(
@@ -26,26 +36,26 @@ client = AsyncOpenAI(
 )
 
 # ------------------------------------------------------------------
-# 2. Функция-обёртка: интерфейс совместим со старой версией
+#    Функция-обёртка: интерфейс совместим со старой версией
 # ------------------------------------------------------------------
-async def ask_llm(messages: List[dict]) -> Tuple[str, dict]:
+async def ask_llm(messages: List[dict], schema: dict) -> Tuple[dict, dict]:
     """
     :param messages: стандартный массив [{role,user|system,content}, …]
-    :return: (content, usage) — строка ответа и статистика токенов
-    :raises LLMError: при HTTP > 299 или ValidationError в SDK
+    :param schema:   TRIAGE_SCHEMA или DEEP_SCHEMA
+    :return: (dict-ответ, usage) — строка ответа и статистика токенов
     """
     try:
         rsp = await client.chat.completions.create(
             model = settings.llm_model,           
             messages = messages,
-            response_format = {"type": "json_object"},
-            temperature = 0,
+            functions=[schema],
+            function_call={"name": schema["name"]},
+            temperature = 0
         )
+        call = rsp.choices[0].message.function_call  # JSON-строка
+        obj  = json.loads(call.arguments)                                # → dict
+        return obj, rsp.usage.model_dump()
     except Exception as exc:
         # перехватываем и заворачиваем в собственное исключение
         raise LLMError(str(exc)) from exc
 
-    # распаковываем первый choice
-    content = rsp.choices[0].message.content
-    usage   = rsp.usage.model_dump()     # {'prompt_tokens': …, 'completion_tokens': …}
-    return content, usage

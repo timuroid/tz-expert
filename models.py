@@ -16,15 +16,19 @@ class AnalyzeRequest(BaseModel):
 
 # ---------- ВЫХОД ----------
 class Finding(BaseModel):
-    paragraph: str              # id <p> или <li>
+    kind: str                   # "Invalid" | "Missing"
+    paragraph: str               # "<p01>" | "<p00>"
     quote: str                  # цитата из документа
     advice: str                 # пояснение / рекомендация LLM
+    
+    class Config:
+        extra = "ignore"
+       
 
-class ErrorOut(BaseModel):
+class AnalyzeOut(BaseModel):
     code: str
-    title: str
-    kind: str                   # Invalid | Bows
-    findings: List[Finding]     # >=1 элементов
+    title: str                # Invalid | Bows
+    findings: List[Finding]  = Field(default_factory=list)  # пустой список допустим   
 
 # + новое
 class TokenStat(BaseModel):
@@ -33,6 +37,6 @@ class TokenStat(BaseModel):
     total: int
 
 class AnalyzeResponse(BaseModel):
-    errors: List[ErrorOut]
+    errors: List[AnalyzeOut]
     tokens: TokenStat          # 👈 добавили
 
