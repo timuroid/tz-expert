@@ -20,8 +20,10 @@ class LLMError(RuntimeError):
 PROMPT_DIR = Path(__file__).parent / "prompts"
 
 TRIAGE_SYSTEM = (PROMPT_DIR / "triage.system.txt").read_text(encoding="utf-8")
+TRIAGE_GROUP_SYSTEM = (PROMPT_DIR / "triage_group.system.txt").read_text(encoding="utf-8")
 DEEP_SYSTEM   = (PROMPT_DIR / "deep.system.txt").read_text(encoding="utf-8")
 TRIAGE_SCHEMA = json.loads((PROMPT_DIR / "triage.schema.json").read_text(encoding="utf-8"))
+TRIAGE_GROUP_SCHEMA = json.loads((PROMPT_DIR / "triage_group.schema.json").read_text(encoding="utf-8"))
 DEEP_SCHEMA   = json.loads((PROMPT_DIR / "deep.schema.json").read_text(encoding="utf-8"))
 
 # ------------------------------------------------------------------

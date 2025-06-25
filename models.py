@@ -4,14 +4,17 @@ models.py
 Pydantic-DTO: строгая валидация входа/выхода.
 """
 
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 # ---------- ВХОД ----------
 class AnalyzeRequest(BaseModel):
     html: str = Field(..., description="Документ в HTML")
-    codes: List[str] | None = Field(
-        None, description="Список кодов; None — проверяем все"
+    codes: Optional[List[str]] = Field(
+        None, description="Список кодов для одиночного параллельного прогона; None — не ограничиваем по кодам"
+    )
+    groups: Optional[List[str]] = Field(
+        None, description="Список отдельнх групп для проверки ;  None — используем дефолтные группы, если codes тоже None"
     )
 
 # ---------- ВЫХОД ----------
@@ -38,5 +41,5 @@ class TokenStat(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     errors: List[AnalyzeOut]
-    tokens: TokenStat          # 👈 добавили
+    tokens: TokenStat          
 

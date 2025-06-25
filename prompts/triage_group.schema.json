@@ -1,0 +1,38 @@
+{
+  "name": "triage_group_result",
+  "description": "Batch-триаж: проверяет сразу несколько кодов ошибок и возвращает массив результатов.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "results": {
+        "type": "array",
+        "description": "Список результатов триажа по каждому коду из группы.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "code": {
+                "type": "string",
+                "pattern": "^E\\d{2}[A-Z]?$",
+                "description": "Код ошибки"
+            },
+            "exists": {
+                "type": "boolean",
+                "description": "true — ошибка есть, false — не обнаружена."
+            },
+            "confidence": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Уровень уверенности модели (0-1). Необязательный параметр."
+            }
+          },
+          "required": ["code", "exists"],
+          "additionalProperties": false
+        },
+        "minItems": 0
+      }
+    },
+    "required": ["results"],
+    "additionalProperties": false
+  }
+}
