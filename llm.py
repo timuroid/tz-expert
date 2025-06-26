@@ -40,15 +40,17 @@ client = AsyncOpenAI(
 # ------------------------------------------------------------------
 #    Функция-обёртка: интерфейс совместим со старой версией
 # ------------------------------------------------------------------
-async def ask_llm(messages: List[dict], schema: dict) -> Tuple[dict, dict]:
+async def ask_llm(messages: List[dict], schema: dict, model: str | None = None) -> Tuple[dict, dict]:
     """
     :param messages: стандартный массив [{role,user|system,content}, …]
     :param schema:   TRIAGE_SCHEMA или DEEP_SCHEMA
     :return: (dict-ответ, usage) — строка ответа и статистика токенов
     """
+    chosen_model = model or settings.llm_model
+
     try:
         rsp = await client.chat.completions.create(
-            model = settings.llm_model,           
+            model = chosen_model,           
             messages = messages,
             functions=[schema],
             function_call={"name": schema["name"]},

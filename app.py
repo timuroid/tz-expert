@@ -124,6 +124,8 @@ async def analyze(req: AnalyzeRequest = Body(
     :param req.groups: список групп ошибок для группового triage
     :return: объект AnalyzeResponse с деталями найденных ошибок и статистикой токенов
     """
+    requested_model = req.model
+
     # 1) Подготовка списков triage
     codes  = req.codes or []
     groups = req.groups or []
@@ -142,7 +144,8 @@ async def analyze(req: AnalyzeRequest = Body(
         # Вызов LLM с batched prompt
         obj, usage = await ask_llm(
             triage_group_prompt(req.html, group_def),
-            TRIAGE_GROUP_SCHEMA
+            TRIAGE_GROUP_SCHEMA,
+            model=requested_model
         )
         # Накопление токенов
         tokens["prompt"]     += usage.get("prompt_tokens", 0)
@@ -159,8 +162,11 @@ async def analyze(req: AnalyzeRequest = Body(
     async def triage_single(code: str) -> tuple[str, bool]:
         rule = RULES[code]
         try:
-            obj, usage = await ask_llm(triage_prompt(req.html, rule),
-                                       TRIAGE_SCHEMA)  
+            obj, usage = await ask_llm(triage_prompt(
+                req.html, rule),
+                TRIAGE_SCHEMA,
+                model=requested_model
+                )  
             tokens["prompt"]     += usage.get("prompt_tokens", 0)                  
             tokens["completion"] += usage.get("completion_tokens", 0) 
             return code, obj.get("exists", False)
@@ -179,8 +185,11 @@ async def analyze(req: AnalyzeRequest = Body(
     async def deep(code: str):
         rule = RULES[code]
         try:
-            obj, usage = await ask_llm(deep_prompt(req.html, rule),
-                                       DEEP_SCHEMA)     
+            obj, usage = await ask_llm(deep_prompt(
+                req.html, rule),
+                DEEP_SCHEMA,
+                model=requested_model
+                )     
             tokens["prompt"]     += usage.get("prompt_tokens", 0)       
             tokens["completion"] += usage.get("completion_tokens", 0)   
             # маппинг → Pydantic

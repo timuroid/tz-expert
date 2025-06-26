@@ -16,6 +16,14 @@ class AnalyzeRequest(BaseModel):
     groups: Optional[List[str]] = Field(
         None, description="Список отдельнх групп для проверки ;  None — используем дефолтные группы, если codes тоже None"
     )
+    model: Optional[str] = Field(
+        None,
+        description=(
+            "Название LLM-модели (как в OpenAI API). "
+            "Если не указано — берётся из переменной окружения LLM_MODEL"
+        ),
+        examples=["gpt-4o-mini", "gpt-4o", "anyscale/mistral-8x22b​​​​​"]
+    )
 
 # ---------- ВЫХОД ----------
 class Finding(BaseModel):
