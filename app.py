@@ -112,7 +112,8 @@ async def analyze(req: AnalyzeRequest = Body(
         example={
             "html": "<h1>Пример ТЗ</h1><p>Контент...</p>",
             "codes": ["E01", "E02"],
-            "groups": ["G1", "G2"]
+            "groups": ["G01", "G02"],
+            "model":"gpt-4.1-mini-2025-04-14"
         }
     )
 ):
