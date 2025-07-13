@@ -27,8 +27,7 @@
                     },
                     "paragraph": {
                         "type": "string",
-                        "pattern": "^<p\\d{2}>$",
-                        "description": "Идентификатор абзаца в формате <pXX>, XX — двухзначный номер. Для Missing используйте фиктивное <p00>."
+                        "description": "Идентификатор абзаца в формате  numXXXX, XXXX — номер. Для Missing используйте фиктивное num0000 "
                     },
                     "quote":     {
                         "type": "string",
