@@ -6,11 +6,13 @@ llm.py
 но базовый URL и имя модели извлекаются из settings ― их легко
 заменить на альтернативный энд-пойнт/модель без правки кода.
 """
-import json
+import re, json
 from pathlib import Path
 from typing import List, Tuple
 from openai import AsyncOpenAI           # официальный клиент ≥ 1.0
 from settings import settings            # см. ниже
+
+JSON_RE = re.compile(r"\{.*?\}", re.S)     # первый {...}
 
 class LLMError(RuntimeError):
     """Исключение при общении с LLM."""
@@ -22,9 +24,9 @@ PROMPT_DIR = Path(__file__).parent / "prompts"
 TRIAGE_SYSTEM = (PROMPT_DIR / "triage.system.txt").read_text(encoding="utf-8")
 TRIAGE_GROUP_SYSTEM = (PROMPT_DIR / "triage_group.system.txt").read_text(encoding="utf-8")
 DEEP_SYSTEM   = (PROMPT_DIR / "deep.system.txt").read_text(encoding="utf-8")
-TRIAGE_SCHEMA = json.loads((PROMPT_DIR / "triage.schema.json").read_text(encoding="utf-8"))
-TRIAGE_GROUP_SCHEMA = json.loads((PROMPT_DIR / "triage_group.schema.json").read_text(encoding="utf-8"))
-DEEP_SCHEMA   = json.loads((PROMPT_DIR / "deep.schema.json").read_text(encoding="utf-8"))
+#TRIAGE_SCHEMA = json.loads((PROMPT_DIR / "triage.schema.json").read_text(encoding="utf-8"))
+#TRIAGE_GROUP_SCHEMA = json.loads((PROMPT_DIR / "triage_group.schema.json").read_text(encoding="utf-8"))
+#DEEP_SCHEMA   = json.loads((PROMPT_DIR / "deep.schema.json").read_text(encoding="utf-8"))
 
 # ------------------------------------------------------------------
 #    Инициализируем единственный клиент на всё приложение
@@ -40,26 +42,28 @@ client = AsyncOpenAI(
 # ------------------------------------------------------------------
 #    Функция-обёртка: интерфейс совместим со старой версией
 # ------------------------------------------------------------------
-async def ask_llm(messages: List[dict], schema: dict, model: str | None = None) -> Tuple[dict, dict]:
+def _extract_json(raw: str) -> dict:
     """
-    :param messages: стандартный массив [{role,user|system,content}, …]
-    :param schema:   TRIAGE_SCHEMA или DEEP_SCHEMA
-    :return: (dict-ответ, usage) — строка ответа и статистика токенов
+    • Если строка начинается на '{' → сразу json.loads
+    • Иначе ищем первый {...} или код-блок ```{ … }```
     """
-    chosen_model = model or settings.llm_model
+    raw = raw.strip()
+    if raw.startswith("{"):
+        return json.loads(raw)
+    m = JSON_RE.search(raw)
+    if not m:
+        raise LLMError(f"No JSON found in LLM answer:\n{raw[:300]}")
+    return json.loads(m.group(0))
 
-    try:
-        rsp = await client.chat.completions.create(
-            model = chosen_model,           
-            messages = messages,
-            functions=[schema],
-            function_call={"name": schema["name"]},
-            temperature = 0
-        )
-        call = rsp.choices[0].message.function_call  # JSON-строка
-        obj  = json.loads(call.arguments)                                # → dict
-        return obj, rsp.usage.model_dump()
-    except Exception as exc:
-        # перехватываем и заворачиваем в собственное исключение
-        raise LLMError(str(exc)) from exc
+
+async def ask_llm(messages: list[dict],
+                  model: str | None = None) -> tuple[dict, dict]:
+    """OpenAI-совместимый вызов без Function Calling"""
+    rsp = await client.chat.completions.create(
+        model=model or settings.llm_model,
+        messages=messages,
+        temperature=0
+    )
+    obj = _extract_json(rsp.choices[0].message.content)
+    return obj, rsp.usage.model_dump()
 

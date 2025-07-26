@@ -13,7 +13,7 @@ from fastapi import FastAPI, Body
 from fastapi.responses import JSONResponse
 
 from models import AnalyzeRequest, AnalyzeResponse, AnalyzeOut, Finding, TokenStat  
-from llm import (ask_llm, LLMError, TRIAGE_SYSTEM, TRIAGE_GROUP_SYSTEM, DEEP_SYSTEM,TRIAGE_SCHEMA, TRIAGE_GROUP_SCHEMA, DEEP_SCHEMA)
+from llm import ask_llm, LLMError, TRIAGE_SYSTEM, TRIAGE_GROUP_SYSTEM, DEEP_SYSTEM
 import utils                                          # опционально
 
 # ---- Грузим YAML ----
@@ -75,7 +75,7 @@ def triage_group_prompt(html: str, group_def: dict) -> List[dict]:
     return [
         {"role": "system", "content": TRIAGE_GROUP_SYSTEM},
         {"role": "user",   "content": f"<DOCUMENT>{html}</DOCUMENT>"},
-        {"role": "user",   "content": group_prompt + body},
+        {"role": "user",   "content": group_prompt + body + "\n\n Верни ровно JSON"},
     ]
 
 # ---------- ЭНД-ПОИНТЫ ----------
@@ -145,7 +145,6 @@ async def analyze(req: AnalyzeRequest = Body(
         # Вызов LLM с batched prompt
         obj, usage = await ask_llm(
             triage_group_prompt(req.html, group_def),
-            TRIAGE_GROUP_SCHEMA,
             model=requested_model
         )
         # Накопление токенов
@@ -165,7 +164,6 @@ async def analyze(req: AnalyzeRequest = Body(
         try:
             obj, usage = await ask_llm(triage_prompt(
                 req.html, rule),
-                TRIAGE_SCHEMA,
                 model=requested_model
                 )  
             tokens["prompt"]     += usage.get("prompt_tokens", 0)                  
@@ -188,7 +186,6 @@ async def analyze(req: AnalyzeRequest = Body(
         try:
             obj, usage = await ask_llm(deep_prompt(
                 req.html, rule),
-                DEEP_SCHEMA,
                 model=requested_model
                 )     
             tokens["prompt"]     += usage.get("prompt_tokens", 0)       
