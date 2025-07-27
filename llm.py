@@ -6,13 +6,14 @@ llm.py
 но базовый URL и имя модели извлекаются из settings ― их легко
 заменить на альтернативный энд-пойнт/модель без правки кода.
 """
-import re, json
+import re, json,  httpx
 from pathlib import Path
 from typing import List, Tuple
 from openai import AsyncOpenAI           # официальный клиент ≥ 1.0
 from settings import settings            # см. ниже
 
-JSON_RE = re.compile(r"\{.*?\}", re.S)     # первый {...}
+JSON_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.S)  # новая - ищет JSON в markdown-блоках
+JSON_SIMPLE_RE = re.compile(r"\{.*\}", re.S)  # для поиска просто JSON без блоков
 
 class LLMError(RuntimeError):
     """Исключение при общении с LLM."""
@@ -24,20 +25,31 @@ PROMPT_DIR = Path(__file__).parent / "prompts"
 TRIAGE_SYSTEM = (PROMPT_DIR / "triage.system.txt").read_text(encoding="utf-8")
 TRIAGE_GROUP_SYSTEM = (PROMPT_DIR / "triage_group.system.txt").read_text(encoding="utf-8")
 DEEP_SYSTEM   = (PROMPT_DIR / "deep.system.txt").read_text(encoding="utf-8")
-#TRIAGE_SCHEMA = json.loads((PROMPT_DIR / "triage.schema.json").read_text(encoding="utf-8"))
-#TRIAGE_GROUP_SCHEMA = json.loads((PROMPT_DIR / "triage_group.schema.json").read_text(encoding="utf-8"))
-#DEEP_SCHEMA   = json.loads((PROMPT_DIR / "deep.schema.json").read_text(encoding="utf-8"))
 
 # ------------------------------------------------------------------
 #    Инициализируем единственный клиент на всё приложение
 #    (он потокобезопасен и переиспользует HTTP-коннекты)
 # ------------------------------------------------------------------
-client = AsyncOpenAI(
-    api_key = settings.llm_api_key,   
-    base_url = settings.llm_base_url, 
-    timeout = 60,                        # сек; равно прежнему httpx-таймауту
-    max_retries = 3,                     # авто-повтор 429/5xx с экспон. back-off
+# ─── OpenRouter клиент (OpenAI-совместимый) ──────────────────
+or_client = AsyncOpenAI(
+    api_key=settings.or_api_key,
+    base_url=settings.or_base_url,
+    default_headers={
+        "HTTP-Referer": settings.or_referer,
+        "X-Title":      settings.or_title,
+    },
+    timeout=60, max_retries=3,
 )
+
+# ─── Yandex GPT сырой HTTP client ─────────────────────────────
+yc_client = httpx.AsyncClient(
+    base_url="https://llm.api.cloud.yandex.net",
+    headers={"Authorization": f"Api-Key {settings.yc_api_key}"},
+    timeout=60,
+)
+
+# ---------- helpers -------------------------------------------------------
+
 
 # ------------------------------------------------------------------
 #    Функция-обёртка: интерфейс совместим со старой версией
@@ -45,25 +57,85 @@ client = AsyncOpenAI(
 def _extract_json(raw: str) -> dict:
     """
     • Если строка начинается на '{' → сразу json.loads
-    • Иначе ищем первый {...} или код-блок ```{ … }```
+    • Иначе ищем JSON в markdown-блоке ```{...}``` или просто {...}
     """
     raw = raw.strip()
+    
     if raw.startswith("{"):
-        return json.loads(raw)
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise LLMError(f"Invalid JSON from LLM: {e}")
+    
+    # Сначала ищем в markdown-блоках
     m = JSON_RE.search(raw)
-    if not m:
-        raise LLMError(f"No JSON found in LLM answer:\n{raw[:300]}")
-    return json.loads(m.group(0))
+    if m:
+        json_text = m.group(1)  # берём содержимое из скобок ()
+    else:
+        # Если не нашли в блоках, ищем просто JSON
+        m = JSON_SIMPLE_RE.search(raw)
+        if not m:
+            raise LLMError(f"No JSON found in LLM answer:\n{raw[:300]}")
+        json_text = m.group(0)
+    
+    try:
+        return json.loads(json_text)
+    except json.JSONDecodeError as e:
+        print(f"DEBUG: Failed to parse JSON: {json_text}")
+        raise LLMError(f"Invalid JSON from LLM: {e}")
 
 
-async def ask_llm(messages: list[dict],
-                  model: str | None = None) -> tuple[dict, dict]:
-    """OpenAI-совместимый вызов без Function Calling"""
-    rsp = await client.chat.completions.create(
-        model=model or settings.llm_model,
+async def _call_openrouter(messages: List[dict], model: str):
+    rsp = await or_client.chat.completions.create(
+        model=model,
         messages=messages,
-        temperature=0
+        temperature=0,
     )
     obj = _extract_json(rsp.choices[0].message.content)
     return obj, rsp.usage.model_dump()
+
+
+def _oa_to_yc(messages: List[dict]) -> list[dict]:
+    """OpenAI-формат → формат Yandex GPT"""
+    return [{"role": m["role"], "text": m["content"]} for m in messages]
+
+
+async def _call_yandex(messages: List[dict], model_uri: str):
+    payload = {
+        "modelUri": model_uri,
+        "messages": _oa_to_yc(messages),
+        "generationOptions": {"temperature": 0},
+    }
+    r = await yc_client.post("/foundationModels/v1/completion", json=payload)
+    if r.status_code != 200:
+        raise RuntimeError(f"YC {r.status_code}: {r.text[:200]}")
+
+    data = r.json()
+
+    # в YC ответе JSON стоит внутри message.text
+    text = data["result"]["alternatives"][0]["message"]["text"]
+    obj = _extract_json(text)
+
+    usage = data["result"]["usage"]
+    usage_dict = {
+        "prompt_tokens": int(usage.get("inputTextTokens", 0)),
+        "completion_tokens": int(usage.get("completionTokens", 0)),
+        "total_tokens": int(usage.get("totalTokens", 0)),
+    }   
+    return obj, usage_dict
+
+
+# ─── публичная обёртка ────────────────────────────────────────
+async def ask_llm(messages: List[dict],
+                  model: str | None = None) -> Tuple[dict, dict]:
+    """
+    model=None                         → OpenRouter default 'openai/gpt-4o-mini'
+    model='openrouter/anthropic/…'     → конкретную модель через OpenRouter
+    model='gpt://<folder>/yandexgpt/…' → вызовить Yandex GPT
+    """
+    if model and model.startswith("gpt://"):
+        return await _call_yandex(messages, model)
+
+    chosen = model or "openrouter/openai/gpt-4o-mini"
+    return await _call_openrouter(messages, chosen)
 
