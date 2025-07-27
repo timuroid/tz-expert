@@ -1,5 +1,5 @@
 """
-llm.py
+llm.py -> llm_service.py
 -------
 Асинхронная обёртка над Chat Completion API.
 Работает «из коробки» с OpenAI ( https://api.openai.com/v1 ),
@@ -10,7 +10,7 @@ import re, json,  httpx
 from pathlib import Path
 from typing import List, Tuple
 from openai import AsyncOpenAI           # официальный клиент ≥ 1.0
-from settings import settings            # см. ниже
+from tz_expert.settings import settings            # см. ниже
 
 JSON_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.S)  # новая - ищет JSON в markdown-блоках
 JSON_SIMPLE_RE = re.compile(r"\{.*\}", re.S)  # для поиска просто JSON без блоков
@@ -20,7 +20,7 @@ class LLMError(RuntimeError):
 
 
 # ── Загружаем system-prompt-ы и схемы 
-PROMPT_DIR = Path(__file__).parent / "prompts"
+PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
 TRIAGE_SYSTEM = (PROMPT_DIR / "triage.system.txt").read_text(encoding="utf-8")
 TRIAGE_GROUP_SYSTEM = (PROMPT_DIR / "triage_group.system.txt").read_text(encoding="utf-8")
@@ -126,16 +126,35 @@ async def _call_yandex(messages: List[dict], model_uri: str):
 
 
 # ─── публичная обёртка ────────────────────────────────────────
-async def ask_llm(messages: List[dict],
-                  model: str | None = None) -> Tuple[dict, dict]:
+# ─── публичная обёртка ────────────────────────────────────────
+async def ask_llm(
+        messages: List[dict],
+        model: str | None = None
+) -> Tuple[dict, dict]:
     """
-    model=None                         → OpenRouter default 'openai/gpt-4o-mini'
-    model='openrouter/anthropic/…'     → конкретную модель через OpenRouter
-    model='gpt://<folder>/yandexgpt/…' → вызовить Yandex GPT
+    • model == None  →  дефолт Qwen-3-235B через OpenRouter
+    • model.startswith("openrouter/")   →  отправляем как есть в OpenRouter
+    • model.startswith("gpt://")        →  отправляем как есть в Yandex Cloud
+    • иначе                              →  считаем строкой-шорткатом Yandex-модели
+                                           и просто приклеиваем префикс
+                                           gpt://<FOLDER>/ + <model>
     """
-    if model and model.startswith("gpt://"):
+    # ---- 0. Дефолт: Qwen 235B (OpenRouter) -------------------
+    if not model:
+        return await _call_openrouter(
+            messages,
+            "openrouter/qwen/qwen3-235b-a22b"
+        )
+
+    # ---- 1. Полный маршрут OpenRouter ------------------------
+    if model.startswith("openrouter/"):
+        return await _call_openrouter(messages, model)
+
+    # ---- 2. Полный URI Yandex Cloud --------------------------
+    if model.startswith("gpt://"):
         return await _call_yandex(messages, model)
 
-    chosen = model or "openrouter/openai/gpt-4o-mini"
-    return await _call_openrouter(messages, chosen)
+    # ---- 3. Короткое имя Yandex → добавляем префикс ----------
+    yc_uri = f"gpt://{settings.yc_folder_id}/{model}"
+    return await _call_yandex(messages, yc_uri)
 

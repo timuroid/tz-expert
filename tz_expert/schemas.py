@@ -1,11 +1,11 @@
 """
-models.py
+models.py -> schemas.py
 ----------
 Pydantic-DTO: строгая валидация входа/выхода.
 """
 
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict 
 
 # ---------- ВХОД ----------
 class AnalyzeRequest(BaseModel):
@@ -25,10 +25,24 @@ class AnalyzeRequest(BaseModel):
         examples=["gpt-4o-mini", "gpt-4o", "anyscale/mistral-8x22b​​​​​"]
     )
 
+    # ⬇️   Дефолтный объект для всего запроса ─────────────────
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "html": "<h1>ТЗ: поставка насосов</h1><p>Описание…</p>",
+                    "codes": ["E02"],
+                    "groups": ["G02"],
+                    "model": "yandexgpt/latest",
+                }
+            ]
+        }
+    )
+
 # ---------- ВЫХОД ----------
 class Finding(BaseModel):
     kind: str                   # "Invalid" | "Missing"
-    paragraph: str               # "<p01>" | "<p00>"
+    paragraph: str               
     quote: str                  # цитата из документа
     advice: str                 # пояснение / рекомендация LLM
     
