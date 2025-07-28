@@ -9,8 +9,11 @@ llm.py -> llm_service.py
 import re, json,  httpx
 from pathlib import Path
 from typing import List, Tuple
-from openai import AsyncOpenAI           # официальный клиент ≥ 1.0
+from openai import AsyncOpenAI         # официальный клиент ≥ 1.0
 from tz_expert.settings import settings            # см. ниже
+import asyncio
+_YC_CONCURRENCY = asyncio.Semaphore(10)   # столько нам разрешено
+
 
 JSON_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.S)  # новая - ищет JSON в markdown-блоках
 JSON_SIMPLE_RE = re.compile(r"\{.*\}", re.S)  # для поиска просто JSON без блоков
@@ -33,12 +36,12 @@ DEEP_SYSTEM   = (PROMPT_DIR / "deep.system.txt").read_text(encoding="utf-8")
 # ─── OpenRouter клиент (OpenAI-совместимый) ──────────────────
 or_client = AsyncOpenAI(
     api_key=settings.or_api_key,
-    base_url=settings.or_base_url,
+    base_url=settings.or_base_url,   # "https://openrouter.ai/api/v1"
     default_headers={
         "HTTP-Referer": settings.or_referer,
         "X-Title":      settings.or_title,
     },
-    timeout=60, max_retries=3,
+    timeout=60,
 )
 
 # ─── Yandex GPT сырой HTTP client ─────────────────────────────
@@ -86,14 +89,15 @@ def _extract_json(raw: str) -> dict:
 
 
 async def _call_openrouter(messages: List[dict], model: str):
-    rsp = await or_client.chat.completions.create(
+    resp = await or_client.chat.completions.create(
         model=model,
         messages=messages,
         temperature=0,
     )
-    obj = _extract_json(rsp.choices[0].message.content)
-    return obj, rsp.usage.model_dump()
-
+    content = resp.choices[0].message.content
+    obj = _extract_json(content)
+    usage = resp.usage.model_dump()      # в новом SDK есть .model_dump()
+    return obj, usage
 
 def _oa_to_yc(messages: List[dict]) -> list[dict]:
     """OpenAI-формат → формат Yandex GPT"""
@@ -106,7 +110,10 @@ async def _call_yandex(messages: List[dict], model_uri: str):
         "messages": _oa_to_yc(messages),
         "generationOptions": {"temperature": 0},
     }
-    r = await yc_client.post("/foundationModels/v1/completion", json=payload)
+    async with _YC_CONCURRENCY:          # ≤10 одновременных входа
+        r = await yc_client.post("/foundationModels/v1/completion", json=payload)
+    if r.status_code == 429:
+        raise RuntimeError("Yandex quota: 429 Too Many Requests")
     if r.status_code != 200:
         raise RuntimeError(f"YC {r.status_code}: {r.text[:200]}")
 
@@ -125,7 +132,7 @@ async def _call_yandex(messages: List[dict], model_uri: str):
     return obj, usage_dict
 
 
-# ─── публичная обёртка ────────────────────────────────────────
+
 # ─── публичная обёртка ────────────────────────────────────────
 async def ask_llm(
         messages: List[dict],
@@ -143,7 +150,7 @@ async def ask_llm(
     if not model:
         return await _call_openrouter(
             messages,
-            "openrouter/qwen/qwen3-235b-a22b"
+            "qwen/qwen3-235b-a22b-2507"
         )
 
     # ---- 1. Полный маршрут OpenRouter ------------------------

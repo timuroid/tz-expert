@@ -1,5 +1,5 @@
 """
-models.py -> schemas.py
+schemas.py
 ----------
 Pydantic-DTO: строгая валидация входа/выхода.
 """

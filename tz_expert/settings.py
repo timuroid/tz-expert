@@ -11,7 +11,7 @@ from pydantic import Field
 class Settings(BaseSettings):
     # ---------- OpenRouter ----------
     or_api_key: str = Field(..., env='OPENROUTER_API_KEY')
-    or_base_url: str = 'https://openrouter.ai/v1'
+    or_base_url: str = 'https://openrouter.ai/api/v1'
     or_referer: str  = Field(..., env='OPENROUTER_REFERER')   # например https://tz-expert.app
     or_title:   str  = Field('TZ-Expert', env='OPENROUTER_TITLE')
 

@@ -1,28 +1,27 @@
 """
+analyzer.py  
 Orchestration layer: triage-group → triage-single → deep.
-Вынесен из старого app.py без изменения логики.
 """
-import json, yaml, asyncio, logging
-from pathlib import Path
+
+import json
+import asyncio
+import logging
 from typing import List, Dict, Tuple
 
 from tz_expert.schemas import (
-    AnalyzeRequest, AnalyzeResponse, AnalyzeOut,
-    Finding, TokenStat
+    AnalyzeRequest, AnalyzeResponse,
+    AnalyzeOut, Finding, TokenStat
 )
 from tz_expert.services.llm_service import (
     ask_llm, LLMError,
     TRIAGE_SYSTEM, TRIAGE_GROUP_SYSTEM, DEEP_SYSTEM
 )
 from tz_expert.utils.tokens import count_tokens
+from tz_expert.services.repository import RuleRepository
 
-# ---------- Загрузка YAML-справочников ----------
-with open("errors.yaml", encoding="utf-8") as f:
-    RULES: Dict[str, dict] = {r["code"]: r for r in yaml.safe_load(f)}
+# Одна сессия репозитория на модуль
+repo = RuleRepository()
 
-groups_data = yaml.safe_load(Path("groups.yaml").read_text(encoding="utf-8"))
-GROUPS_MAP = {g["id"]: g for g in groups_data["groups"]}
-DEFAULT_GROUPS = [g["id"] for g in groups_data["groups"]]
 
 # ---------- PROMPT-генераторы ----------
 def _triage_prompt(html: str, rule: dict) -> List[dict]:
@@ -33,8 +32,10 @@ def _triage_prompt(html: str, rule: dict) -> List[dict]:
             f"'Код ошибки' : '{rule['code']}',\n"
             f"'Название ошибки' : '{rule['title']}',\n"
             f"'Описание ошибки' : '{rule['description']}',\n"
-            f"'Способ обнаружения ошибки' : '{rule['detector']}'"}
+            f"'Способ обнаружения ошибки' : '{rule['detector']}'"
+        }
     ]
+
 
 def _deep_prompt(html: str, rule: dict) -> List[dict]:
     return [
@@ -44,51 +45,71 @@ def _deep_prompt(html: str, rule: dict) -> List[dict]:
             f"'Код ошибки' : '{rule['code']}',\n"
             f"'Название ошибки' : '{rule['title']}',\n"
             f"'Описание ошибки' : '{rule['description']}',\n"
-            f"'Способ обнаружения ошибки' : '{rule['detector']}'"}
+            f"'Способ обнаружения ошибки' : '{rule['detector']}'"
+        }
     ]
 
-def _triage_group_prompt(html: str, group_def: dict) -> List[dict]:
+
+def _triage_group_prompt(
+    html: str,
+    group_def: dict,
+    rules: Dict[str, dict]
+) -> List[dict]:
+    """
+    group_def["system_prompt"] теперь — это описание группы из БД.
+    rules — полный словарь {code → rule}.
+    """
+    # Формируем тело из всех кодов группы
     body = "\n\n".join(
-        f"Код: {RULES[c]['code']}\n"
-        f"Название: {RULES[c]['title']}\n"
-        f"Описание: {RULES[c]['description']}\n"
-        f"Детектор: {RULES[c]['detector']}"
-        for c in group_def["codes"]
+        f"Код: {rules[code]['code']}\n"
+        f"Название: {rules[code]['title']}\n"
+        f"Описание: {rules[code]['description']}\n"
+        f"Детектор: {rules[code]['detector']}"
+        for code in group_def["codes"]
     )
+
     return [
-        {"role": "system", "content": TRIAGE_GROUP_SYSTEM},
-        {"role": "user",   "content": f"<DOCUMENT>{html}</DOCUMENT>"},
-        {"role": "user",   "content": group_def["system_prompt"] + body + "\n\n Верни ровно JSON"},
+        {"role": "system",  "content": TRIAGE_GROUP_SYSTEM},
+        {"role": "user",    "content": f"<DOCUMENT>{html}</DOCUMENT>"},
+        {"role": "user",    "content": group_def["system_prompt"] + body + "\n\n Верни ровно JSON"},
     ]
+
 
 # ---------- Сервис-класс ----------
 class AnalyzerService:
     async def analyze(self, req: AnalyzeRequest) -> AnalyzeResponse:
         model = req.model
 
+        # 1) Всегда берём самые свежие данные из БД
+        RULES      = repo.get_all_rules()    # { "E02": {...}, ... }
+        GROUPS_MAP = repo.get_all_groups()   # { "G01": {...}, ... }
+        DEFAULT_GROUPS = list(GROUPS_MAP.keys())
+
+        # 2) Коды и группы из запроса
         codes  = req.codes  or []
         groups = req.groups or []
         if not codes and not groups:
             groups = DEFAULT_GROUPS
 
         token_stat = {"prompt": 0, "completion": 0}
+        triage_pairs: List[Tuple[str, bool]] = []
 
-        # --- group triage --------------------------------------------------
+        # --- group triage ---
         async def _triage_group(grp_id: str) -> List[Tuple[str, bool]]:
             obj, usage = await ask_llm(
-                _triage_group_prompt(req.html, GROUPS_MAP[grp_id]),
+                _triage_group_prompt(req.html, GROUPS_MAP[grp_id], RULES),
                 model=model,
             )
             token_stat["prompt"]     += usage.get("prompt_tokens", 0)
             token_stat["completion"] += usage.get("completion_tokens", 0)
             return [(r["code"], r["exists"]) for r in obj["results"]]
 
-        triage_pairs: List[Tuple[str, bool]] = []
         if groups:
-            results = await asyncio.gather(*(_triage_group(g) for g in groups))
+            tasks = (_triage_group(g) for g in groups)
+            results = await asyncio.gather(*tasks)
             triage_pairs.extend(p for sub in results for p in sub)
 
-        # --- single triage -------------------------------------------------
+        # --- single triage ---
         async def _triage_single(code: str) -> Tuple[str, bool]:
             rule = RULES[code]
             try:
@@ -104,13 +125,12 @@ class AnalyzerService:
                 return code, False
 
         if codes:
-            triage_pairs.extend(
-                await asyncio.gather(*(_triage_single(c) for c in codes))
-            )
+            tasks = (_triage_single(c) for c in codes)
+            triage_pairs.extend(await asyncio.gather(*tasks))
 
         positives = [c for c, ok in triage_pairs if ok]
 
-        # --- deep ----------------------------------------------------------
+        # --- deep analysis ---
         async def _deep(code: str) -> AnalyzeOut:
             rule = RULES[code]
             try:
@@ -132,16 +152,12 @@ class AnalyzerService:
 
         detailed = await asyncio.gather(*(_deep(c) for c in positives))
 
+        # 3) Финальная статистика токенов
         token_stat["total"] = token_stat["prompt"] + token_stat["completion"]
-        logging.info(
-            "tokens_in=%s",
-            count_tokens(req.html) * len(codes)
-        )
-        return AnalyzeResponse(
-            errors=detailed,
-            tokens=TokenStat(**token_stat)
-        )
+        logging.info("tokens_in=%s", count_tokens(req.html) * len(codes))
 
-    # отдельный метод для /errors
+        return AnalyzeResponse(errors=detailed, tokens=TokenStat(**token_stat))
+
     def list_rules(self) -> Dict[str, dict]:
-        return RULES
+        """Эндпоинт /errors — возвращаем полный справочник из БД."""
+        return repo.get_all_rules()
