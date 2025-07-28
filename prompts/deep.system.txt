@@ -20,7 +20,7 @@ rule       – объект {code,title,description,detector}.
   "findings": [
     {
       "kind": "Invalid",          // "Invalid" | "Missing"
-      "paragraph": "num0003",     // Missing → "num0000"
+      "class": "qwert",     // Missing → "00000"
       "quote": "Неправильная фраза", // Missing → "—"
       "advice": "Как исправить кратко"
     }
