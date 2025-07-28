@@ -1,13 +1,19 @@
 from fastapi import APIRouter, Body, Depends
 from tz_expert.schemas import AnalyzeRequest, AnalyzeResponse
 from tz_expert.services.analyzer import AnalyzerService
+from tz_expert.services.repository import RuleRepository
 
 router = APIRouter(tags=["Analysis"])
 
+def get_repo() -> RuleRepository:
+    """FastAPI dependency – даёт свежий Repo на каждый запрос."""
+    return RuleRepository()
+
+
 @router.get("/errors", tags=["Rules"])
-async def list_rules(svc: AnalyzerService = Depends()):
+async def list_rules(repo: RuleRepository = Depends(get_repo)):
     """Вернуть YAML-справочник правил (как и раньше)."""
-    return svc.list_rules()
+    return repo.get_all_rules()
 
 @router.post(
     "/analyze",
@@ -30,8 +36,9 @@ async def analyze(
             }
         },
     ),
-    svc: AnalyzerService = Depends(),
+    repo: RuleRepository = Depends(get_repo),
 ):
+    svc = AnalyzerService(repo)
     """
     1. **triage-group** — быстрый batched-поиск ошибок.<br>
     2. **triage-single** — доп. точечные проверки.<br>

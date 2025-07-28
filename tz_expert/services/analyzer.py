@@ -19,8 +19,7 @@ from tz_expert.services.llm_service import (
 from tz_expert.utils.tokens import count_tokens
 from tz_expert.services.repository import RuleRepository
 
-# Одна сессия репозитория на модуль
-repo = RuleRepository()
+
 
 
 # ---------- PROMPT-генераторы ----------
@@ -77,12 +76,17 @@ def _triage_group_prompt(
 
 # ---------- Сервис-класс ----------
 class AnalyzerService:
+    
+    def __init__(self, repo: RuleRepository | None = None):
+        # позволяет передавать репозиторий через Depends
+        self._repo = repo or RuleRepository()
+
     async def analyze(self, req: AnalyzeRequest) -> AnalyzeResponse:
         model = req.model
 
-        # 1) Всегда берём самые свежие данные из БД
-        RULES      = repo.get_all_rules()    # { "E02": {...}, ... }
-        GROUPS_MAP = repo.get_all_groups()   # { "G01": {...}, ... }
+        # ---- теперь пользуемся self._repo ------------
+        RULES       = self._repo.get_all_rules()
+        GROUPS_MAP  = self._repo.get_all_groups()
         DEFAULT_GROUPS = list(GROUPS_MAP.keys())
 
         # 2) Коды и группы из запроса
@@ -160,4 +164,4 @@ class AnalyzerService:
 
     def list_rules(self) -> Dict[str, dict]:
         """Эндпоинт /errors — возвращаем полный справочник из БД."""
-        return repo.get_all_rules()
+        return self._repo.get_all_rules()
