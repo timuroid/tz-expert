@@ -135,24 +135,64 @@ class AnalyzerService:
         positives = [c for c, ok in triage_pairs if ok]
 
         # --- deep analysis ---
+        # --- deep analysis ---
         async def _deep(code: str) -> AnalyzeOut:
+            """
+            • Делаем до 3-х попыток (1 оригинал + 2 перезапроса),
+              если LLM вернул JSON без обязательных ключей.
+            • Если даже после 3-й попытки формат плохой – пишем заглушку.
+            """
             rule = RULES[code]
-            try:
-                obj, usage = await ask_llm(
-                    _deep_prompt(req.html, rule),
-                    model=model,
-                )
+
+            async def _call(prompt: list[dict]):
+                """Обёртка над ask_llm с накоплением usage."""
+                obj, usage = await ask_llm(prompt, model=model)
                 token_stat["prompt"]     += usage.get("prompt_tokens", 0)
                 token_stat["completion"] += usage.get("completion_tokens", 0)
-                findings = [Finding(**f) for f in obj.get("findings", [])]
-                return AnalyzeOut(code=obj["code"], title=obj["title"], findings=findings)
-            except (LLMError, json.JSONDecodeError) as exc:
-                logging.error("LLM deep error %s: %s", code, exc)
-                return AnalyzeOut(
-                    code=rule["code"],
-                    title=rule["title"],
-                    findings=[Finding(paragraph="?", quote="-", advice=str(exc))]
+                return obj
+
+            # ---- обязательные поля в findings ----
+            required = {"kind", "paragraph", "quote", "advice"}
+
+            def _is_valid(o: dict) -> bool:
+                return (
+                    isinstance(o.get("findings"), list) and
+                    all(required.issubset(f) for f in o["findings"])
                 )
+
+            prompt_base = _deep_prompt(req.html, rule)
+
+            for attempt in range(3):          # 0,1,2
+                obj = await _call(prompt_base)
+
+                if _is_valid(obj):            # ✓ формат ок
+                    findings = [Finding(**f) for f in obj["findings"]]
+                    return AnalyzeOut(code=obj["code"],
+                                      title=obj["title"],
+                                      findings=findings)
+
+                # ─── формируем уточняющий репромпт ──────────
+                prompt_base.append({
+                    "role": "user",
+                    "content": (
+                        "‼️ Формат ответа нарушен: "
+                        f"отсутствуют ключи {required}. "
+                        "Верни ровно JSON указанного формата."
+                    )
+                })
+
+            # --- 3-я попытка тоже неудачна → заглушка ---
+            logging.error("LLM deep %s – 3 ошибки JSON-формата", code)
+            return AnalyzeOut(
+                code=rule["code"],
+                title=rule["title"],
+                findings=[Finding(
+                    kind="Missing",
+                    paragraph="00000",
+                    quote="-",
+                    advice="LLM трижды вернул неверный JSON-формат"
+                )],
+            )
 
         detailed = await asyncio.gather(*(_deep(c) for c in positives))
 
