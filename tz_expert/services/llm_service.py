@@ -58,34 +58,25 @@ yc_client = httpx.AsyncClient(
 #    Функция-обёртка: интерфейс совместим со старой версией
 # ------------------------------------------------------------------
 def _extract_json(raw: str) -> dict:
-    """
-    • Если строка начинается на '{' → сразу json.loads
-    • Иначе ищем JSON в markdown-блоке ```{...}``` или просто {...}
-    """
     raw = raw.strip()
-    
+
+    # ---------- ищем JSON-тело ----------
     if raw.startswith("{"):
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError as e:
-            raise LLMError(f"Invalid JSON from LLM: {e}")
-    
-    # Сначала ищем в markdown-блоках
-    m = JSON_RE.search(raw)
-    if m:
-        json_text = m.group(1)  # берём содержимое из скобок ()
+        json_text = raw
     else:
-        # Если не нашли в блоках, ищем просто JSON
-        m = JSON_SIMPLE_RE.search(raw)
+        m = JSON_RE.search(raw) or JSON_SIMPLE_RE.search(raw)
         if not m:
             raise LLMError(f"No JSON found in LLM answer:\n{raw[:300]}")
-        json_text = m.group(0)
-    
+        json_text = m.group(1) if m.re is JSON_RE else m.group(0)
+
+    # ---------- вырезаем \x00–\x1F, \x7F ----------
+    json_text = re.sub(r"[\x00-\x1f\x7f]", "", json_text)
+
     try:
         return json.loads(json_text)
     except json.JSONDecodeError as e:
-        print(f"DEBUG: Failed to parse JSON: {json_text}")
-        raise LLMError(f"Invalid JSON from LLM: {e}")
+        raise LLMError(f"Invalid JSON from LLM: {e}") from e
+
 
 
 async def _call_openrouter(messages: List[dict], model: str):
@@ -93,6 +84,7 @@ async def _call_openrouter(messages: List[dict], model: str):
         model=model,
         messages=messages,
         temperature=0,
+        response_format={"type": "json_object"},
     )
     content = resp.choices[0].message.content
     obj = _extract_json(content)
@@ -108,7 +100,10 @@ async def _call_yandex(messages: List[dict], model_uri: str):
     payload = {
         "modelUri": model_uri,
         "messages": _oa_to_yc(messages),
-        "generationOptions": {"temperature": 0},
+        "generationOptions": {
+            "temperature": 0,
+            "output_type": "JSON_OBJECT",
+            },
     }
     async with _YC_CONCURRENCY:          # ≤10 одновременных входа
         r = await yc_client.post("/foundationModels/v1/completion", json=payload)
@@ -131,7 +126,31 @@ async def _call_yandex(messages: List[dict], model_uri: str):
     }   
     return obj, usage_dict
 
+# -----------------------------------------------------------------
+#  retry-wrapper: до 2 повторов, если _extract_json бросил LLMError
+# -----------------------------------------------------------------
+async def _call_with_retry(caller, *args, max_retry: int = 2):
+    """
+    caller  – функция _call_openrouter или _call_yandex
+    args[0] – messages (list[dict]); при повторе добавляем fix-prompt
+    """
+    messages = list(args[0])
+    others   = args[1:]
 
+    for attempt in range(max_retry + 1):
+        try:
+            return await caller(messages, *others)
+        except LLMError as e:
+            if "Invalid JSON" not in str(e):
+                raise                         # другая причина – пробрасываем
+            if attempt == max_retry:
+                raise                         # исчерпаны попытки
+            messages = messages + [{
+                "role": "user",
+                "content": (
+                    "❗ Формат нарушен. Верни РОВНО валидный JSON-объект."
+                ),
+            }]
 
 # ─── публичная обёртка ────────────────────────────────────────
 async def ask_llm(
@@ -148,20 +167,18 @@ async def ask_llm(
     """
     # ---- 0. Дефолт: Qwen 235B (OpenRouter) -------------------
     if not model:
-        return await _call_openrouter(
-            messages,
-            "qwen/qwen3-235b-a22b-2507"
-        )
+        return await _call_with_retry(_call_openrouter, messages,"qwen/qwen3-235b-a22b-2507")
 
     # ---- 1. Полный маршрут OpenRouter ------------------------
     if model.startswith("openrouter/"):
-        return await _call_openrouter(messages, model)
+        return await _call_with_retry(_call_openrouter, messages, model)
 
     # ---- 2. Полный URI Yandex Cloud --------------------------
     if model.startswith("gpt://"):
-        return await _call_yandex(messages, model)
+        return await _call_with_retry(_call_yandex, messages, model)
+
 
     # ---- 3. Короткое имя Yandex → добавляем префикс ----------
     yc_uri = f"gpt://{settings.yc_folder_id}/{model}"
-    return await _call_yandex(messages, yc_uri)
+    return await _call_with_retry(_call_yandex, messages, yc_uri)
 

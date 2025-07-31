@@ -135,7 +135,6 @@ class AnalyzerService:
         positives = [c for c, ok in triage_pairs if ok]
 
         # --- deep analysis ---
-        # --- deep analysis ---
         async def _deep(code: str) -> AnalyzeOut:
             """
             • Делаем до 3-х попыток (1 оригинал + 2 перезапроса),
