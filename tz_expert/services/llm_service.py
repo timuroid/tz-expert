@@ -79,52 +79,81 @@ def _extract_json(raw: str) -> dict:
 
 
 
-async def _call_openrouter(messages: List[dict], model: str):
-    resp = await or_client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0,
-        response_format={"type": "json_object"},
-    )
+async def _call_openrouter(
+    messages: List[dict],
+    model: str,
+    json_schema: dict,           # 🚩 ОБЯЗАТЕЛЬНО!
+):
+    """
+    Отправляет json-schema через OpenRouter Structured Output.
+
+    json_schema ожидается в формате:
+    {
+        "name":   "<любое-имя>",
+        "schema": {... pydantic-schema ...}
+    }
+    """
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0,
+        "response_format": {           # <<< главное отличие
+            "type": "json_schema",
+            "json_schema": {
+                "name":   json_schema["name"],
+                "strict": True,
+                "schema": json_schema["schema"],
+            },
+        },
+    }
+
+    resp = await or_client.chat.completions.create(**payload)
     content = resp.choices[0].message.content
-    obj = _extract_json(content)
-    usage = resp.usage.model_dump()      # в новом SDK есть .model_dump()
+    obj     = _extract_json(content)
+    usage   = resp.usage.model_dump()
+
     return obj, usage
+
 
 def _oa_to_yc(messages: List[dict]) -> list[dict]:
     """OpenAI-формат → формат Yandex GPT"""
     return [{"role": m["role"], "text": m["content"]} for m in messages]
 
 
-async def _call_yandex(messages: List[dict], model_uri: str):
+async def _call_yandex(
+    messages: List[dict],
+    model_uri: str,
+    json_schema: dict,           # 🚩 ОБЯЗАТЕЛЬНО!
+):
+    """
+    Yandex GPT ≥ v2: json_schema идёт верхним полем запроса.
+    """
     payload = {
         "modelUri": model_uri,
         "messages": _oa_to_yc(messages),
-        "generationOptions": {
-            "temperature": 0,
-            "output_type": "JSON_OBJECT",
-            },
+        "json_schema": {          # <<< главное отличие
+            "schema": json_schema["schema"]
+        },
     }
-    async with _YC_CONCURRENCY:          # ≤10 одновременных входа
+
+    async with _YC_CONCURRENCY:
         r = await yc_client.post("/foundationModels/v1/completion", json=payload)
+
     if r.status_code == 429:
         raise RuntimeError("Yandex quota: 429 Too Many Requests")
     if r.status_code != 200:
         raise RuntimeError(f"YC {r.status_code}: {r.text[:200]}")
 
-    data = r.json()
+    data  = r.json()
+    text  = data["result"]["alternatives"][0]["message"]["text"]
+    obj   = _extract_json(text)
+    usage = {
+        "prompt_tokens":     int(data["result"]["usage"].get("inputTextTokens", 0)),
+        "completion_tokens": int(data["result"]["usage"].get("completionTokens", 0)),
+        "total_tokens":      int(data["result"]["usage"].get("totalTokens", 0)),
+    }
+    return obj, usage
 
-    # в YC ответе JSON стоит внутри message.text
-    text = data["result"]["alternatives"][0]["message"]["text"]
-    obj = _extract_json(text)
-
-    usage = data["result"]["usage"]
-    usage_dict = {
-        "prompt_tokens": int(usage.get("inputTextTokens", 0)),
-        "completion_tokens": int(usage.get("completionTokens", 0)),
-        "total_tokens": int(usage.get("totalTokens", 0)),
-    }   
-    return obj, usage_dict
 
 # -----------------------------------------------------------------
 #  retry-wrapper: до 2 повторов, если _extract_json бросил LLMError
@@ -155,6 +184,7 @@ async def _call_with_retry(caller, *args, max_retry: int = 2):
 # ─── публичная обёртка ────────────────────────────────────────
 async def ask_llm(
         messages: List[dict],
+        json_schema: dict,
         model: str | None = None
 ) -> Tuple[dict, dict]:
     """
@@ -167,18 +197,18 @@ async def ask_llm(
     """
     # ---- 0. Дефолт: Qwen 235B (OpenRouter) -------------------
     if not model:
-        return await _call_with_retry(_call_openrouter, messages,"qwen/qwen3-235b-a22b-2507")
+        return await _call_with_retry(_call_openrouter, messages,"qwen/qwen3-235b-a22b-2507", json_schema)
 
     # ---- 1. Полный маршрут OpenRouter ------------------------
     if model.startswith("openrouter/"):
-        return await _call_with_retry(_call_openrouter, messages, model)
+        return await _call_with_retry(_call_openrouter, messages, model, json_schema)
 
     # ---- 2. Полный URI Yandex Cloud --------------------------
     if model.startswith("gpt://"):
-        return await _call_with_retry(_call_yandex, messages, model)
+        return await _call_with_retry(_call_yandex, messages, model, json_schema)
 
 
     # ---- 3. Короткое имя Yandex → добавляем префикс ----------
     yc_uri = f"gpt://{settings.yc_folder_id}/{model}"
-    return await _call_with_retry(_call_yandex, messages, yc_uri)
+    return await _call_with_retry(_call_yandex, messages, yc_uri, json_schema)
 

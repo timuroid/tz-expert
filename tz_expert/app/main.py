@@ -5,17 +5,14 @@ FastAPI-приложение
 """
 
 from fastapi import FastAPI
-from .routers import router
-
-
+from tz_expert.app.routers import router
 
 app = FastAPI(
     title="TZ-Expert LLM API",
-    version="0.4",
-    description="Сервис проверки технических заданий: триаж и детальный анализ ошибок по списку правил.",
+    version="0.5",
+    description="Сервис структурированного анализа Markdown-документов (structure-guided reasoning).",
     openapi_tags=[
-        {"name": "Rules", "description": "Работа со справочником правил"},
-        {"name": "Analysis", "description": "Проверка и анализ документов"}
+        {"name": "Structured Analysis", "description": "Structure-guided group reasoning"}
     ]
 )
 

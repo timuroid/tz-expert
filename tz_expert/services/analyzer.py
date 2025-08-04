@@ -1,206 +1,128 @@
 """
 analyzer.py  
-Orchestration layer: triage-group → triage-single → deep.
+SGR analyze
 """
 
 import json
-import asyncio
 import logging
+import asyncio
 from typing import List, Dict, Tuple
 
 from tz_expert.schemas import (
-    AnalyzeRequest, AnalyzeResponse,
-    AnalyzeOut, Finding, TokenStat
+    StructuredAnalyzeRequest,
+    StructuredAnalyzeResponse,
+    GroupReportStructured,
+    TokenStat,
 )
-from tz_expert.services.llm_service import (
-    ask_llm, LLMError,
-    TRIAGE_SYSTEM, TRIAGE_GROUP_SYSTEM, DEEP_SYSTEM
-)
-from tz_expert.utils.tokens import count_tokens
 from tz_expert.services.repository import RuleRepository
+from tz_expert.services.prompt_builder import build_system_prompt, build_user_prompt
+from tz_expert.services.llm_service import ask_llm
 
 
-
-
-# ---------- PROMPT-генераторы ----------
-def _triage_prompt(html: str, rule: dict) -> List[dict]:
-    return [
-        {"role": "system", "content": TRIAGE_SYSTEM},
-        {"role": "user",   "content": f"<DOCUMENT>{html}</DOCUMENT>"},
-        {"role": "user",   "content":
-            f"'Код ошибки' : '{rule['code']}',\n"
-            f"'Название ошибки' : '{rule['title']}',\n"
-            f"'Описание ошибки' : '{rule['description']}',\n"
-            f"'Способ обнаружения ошибки' : '{rule['detector']}'"
-        }
-    ]
-
-
-def _deep_prompt(html: str, rule: dict) -> List[dict]:
-    return [
-        {"role": "system", "content": DEEP_SYSTEM},
-        {"role": "user",   "content": f"<DOCUMENT>{html}</DOCUMENT>"},
-        {"role": "user",   "content":
-            f"'Код ошибки' : '{rule['code']}',\n"
-            f"'Название ошибки' : '{rule['title']}',\n"
-            f"'Описание ошибки' : '{rule['description']}',\n"
-            f"'Способ обнаружения ошибки' : '{rule['detector']}'"
-        }
-    ]
-
-
-def _triage_group_prompt(
-    html: str,
-    group_def: dict,
-    rules: Dict[str, dict]
-) -> List[dict]:
-    """
-    group_def["system_prompt"] теперь — это описание группы из БД.
-    rules — полный словарь {code → rule}.
-    """
-    # Формируем тело из всех кодов группы
-    body = "\n\n".join(
-        f"Код: {rules[code]['code']}\n"
-        f"Название: {rules[code]['title']}\n"
-        f"Описание: {rules[code]['description']}\n"
-        f"Детектор: {rules[code]['detector']}"
-        for code in group_def["codes"]
-    )
-
-    return [
-        {"role": "system",  "content": TRIAGE_GROUP_SYSTEM},
-        {"role": "user",    "content": f"<DOCUMENT>{html}</DOCUMENT>"},
-        {"role": "user",    "content": group_def["system_prompt"] + body + "\n\n Верни ровно JSON"},
-    ]
-
-
-# ---------- Сервис-класс ----------
 class AnalyzerService:
-    
+    """
+    Сервис для structure-guided reasoning: анализ Markdown по множеству групп.
+    """
     def __init__(self, repo: RuleRepository | None = None):
-        # позволяет передавать репозиторий через Depends
         self._repo = repo or RuleRepository()
 
-    async def analyze(self, req: AnalyzeRequest) -> AnalyzeResponse:
-        model = req.model
+    async def analyze_structured(
+        self,
+        req: StructuredAnalyzeRequest
+    ) -> StructuredAnalyzeResponse:
+        # 1) Загрузка правил и групп
+        groups_map = self._repo.get_all_groups()
+        rules_map = self._repo.get_all_rules()
 
-        # ---- теперь пользуемся self._repo ------------
-        RULES       = self._repo.get_all_rules()
-        GROUPS_MAP  = self._repo.get_all_groups()
-        DEFAULT_GROUPS = list(GROUPS_MAP.keys())
+        # 2) Группы из запроса или все
+        group_ids = req.groups or list(groups_map.keys())
+        invalid = [g for g in group_ids if g not in groups_map]
+        if invalid:
+            raise ValueError(f"Группы не найдены: {invalid}")
 
-        # 2) Коды и группы из запроса
-        codes  = req.codes  or []
-        groups = req.groups or []
-        if not codes and not groups:
-            groups = DEFAULT_GROUPS
+        total_prompt = 0
+        total_completion = 0
 
-        token_stat = {"prompt": 0, "completion": 0}
-        triage_pairs: List[Tuple[str, bool]] = []
+        async def _analyze_group(gid: str) -> Tuple[GroupReportStructured, Dict[str, int]]:
+            meta = groups_map[gid]
+            rules = [rules_map[c] for c in meta["codes"]]
 
-        # --- group triage ---
-        async def _triage_group(grp_id: str) -> List[Tuple[str, bool]]:
-            obj, usage = await ask_llm(
-                _triage_group_prompt(req.html, GROUPS_MAP[grp_id], RULES),
-                model=model,
-            )
-            token_stat["prompt"]     += usage.get("prompt_tokens", 0)
-            token_stat["completion"] += usage.get("completion_tokens", 0)
-            return [(r["code"], r["exists"]) for r in obj["results"]]
+            # --- JSON-schema для строгого Structured Output -----------------
+            schema_dict = {                       # формат строго ожидаемый ask_llm
+                "name":   "GroupReport",          # произвольное осмысленное имя
+                "schema": GroupReportStructured.model_json_schema(),
+            }
 
-        if groups:
-            tasks = (_triage_group(g) for g in groups)
-            results = await asyncio.gather(*tasks)
-            triage_pairs.extend(p for sub in results for p in sub)
-
-        # --- single triage ---
-        async def _triage_single(code: str) -> Tuple[str, bool]:
-            rule = RULES[code]
-            try:
-                obj, usage = await ask_llm(
-                    _triage_prompt(req.html, rule),
-                    model=model,
-                )
-                token_stat["prompt"]     += usage.get("prompt_tokens", 0)
-                token_stat["completion"] += usage.get("completion_tokens", 0)
-                return code, obj.get("exists", False)
-            except Exception as exc:
-                logging.error("LLM triage error %s: %s", code, exc)
-                return code, False
-
-        if codes:
-            tasks = (_triage_single(c) for c in codes)
-            triage_pairs.extend(await asyncio.gather(*tasks))
-
-        positives = [c for c, ok in triage_pairs if ok]
-
-        # --- deep analysis ---
-        async def _deep(code: str) -> AnalyzeOut:
-            """
-            • Делаем до 3-х попыток (1 оригинал + 2 перезапроса),
-              если LLM вернул JSON без обязательных ключей.
-            • Если даже после 3-й попытки формат плохой – пишем заглушку.
-            """
-            rule = RULES[code]
-
-            async def _call(prompt: list[dict]):
-                """Обёртка над ask_llm с накоплением usage."""
-                obj, usage = await ask_llm(prompt, model=model)
-                token_stat["prompt"]     += usage.get("prompt_tokens", 0)
-                token_stat["completion"] += usage.get("completion_tokens", 0)
-                return obj
-
-            # ---- обязательные поля в findings ----
-            required = {"kind", "paragraph", "quote", "advice"}
-
-            def _is_valid(o: dict) -> bool:
-                return (
-                    isinstance(o.get("findings"), list) and
-                    all(required.issubset(f) for f in o["findings"])
-                )
-
-            prompt_base = _deep_prompt(req.html, rule)
-
-            for attempt in range(3):          # 0,1,2
-                obj = await _call(prompt_base)
-
-                if _is_valid(obj):            # ✓ формат ок
-                    findings = [Finding(**f) for f in obj["findings"]]
-                    return AnalyzeOut(code=obj["code"],
-                                      title=obj["title"],
-                                      findings=findings)
-
-                # ─── формируем уточняющий репромпт ──────────
-                prompt_base.append({
-                    "role": "user",
-                    "content": (
-                        "‼️ Формат ответа нарушен: "
-                        f"отсутствуют ключи {required}. "
-                        "Верни ровно JSON указанного формата."
-                    )
-                })
-
-            # --- 3-я попытка тоже неудачна → заглушка ---
-            logging.error("LLM deep %s – 3 ошибки JSON-формата", code)
-            return AnalyzeOut(
-                code=rule["code"],
-                title=rule["title"],
-                findings=[Finding(
-                    kind="Missing",
-                    paragraph="00000",
-                    quote="-",
-                    advice="LLM трижды вернул неверный JSON-формат"
-                )],
+            schema_json = json.dumps(             # ↓ остаётся для prompt-подсказки
+                schema_dict["schema"],
+                ensure_ascii=False,
+                indent=2,
             )
 
-        detailed = await asyncio.gather(*(_deep(c) for c in positives))
+            system_msg = build_system_prompt()
+            user_msg = build_user_prompt(
+                schema_json=schema_json,
+                markdown=req.markdown,
+                group_meta=meta,
+                rules=rules
+            )
 
-        # 3) Финальная статистика токенов
-        token_stat["total"] = token_stat["prompt"] + token_stat["completion"]
-        logging.info("tokens_in=%s", count_tokens(req.html) * len(codes))
+            usage_acc = {"prompt_tokens": 0, "completion_tokens": 0}
+            max_attempts = 3
 
-        return AnalyzeResponse(errors=detailed, tokens=TokenStat(**token_stat))
+            for attempt in range(1, max_attempts + 1):
+                messages = [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user",   "content": user_msg}
+                ]
+                if attempt > 1:
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "❗ Формат ответа нарушен. "
+                            "Верните строго валидный JSON по указанной схеме."
+                        )
+                    })
+                try:
+                    raw_obj, usage = await ask_llm(messages,schema_dict, model=req.model)
+                except Exception as e:
+                    logging.warning("Группа %s: LLM-сбой (попытка %d): %s", gid, attempt, e)
+                    continue
 
-    def list_rules(self) -> Dict[str, dict]:
-        """Эндпоинт /errors — возвращаем полный справочник из БД."""
-        return self._repo.get_all_rules()
+                usage_acc["prompt_tokens"]     += usage.get("prompt_tokens", 0)
+                usage_acc["completion_tokens"] += usage.get("completion_tokens", 0)
+
+                try:
+                    report = GroupReportStructured.model_validate(raw_obj)
+                    return report, usage_acc
+                except Exception as e:
+                    logging.warning("Группа %s: неверный JSON (попытка %d): %s", gid, attempt, e)
+                    continue
+
+            # stub, если все попытки неудачны
+            logging.error("Группа %s: нет валидного JSON после %d попыток", gid, max_attempts)
+            stub = GroupReportStructured(
+                group_id=gid,
+                preliminary_notes="",
+                errors=[],
+                overall_critique=f"LLM не вернул валидный JSON после {max_attempts} попыток"
+            )
+            return stub, usage_acc
+
+        # 3) Параллельный запуск
+        tasks = [asyncio.create_task(_analyze_group(g)) for g in group_ids]
+        results = await asyncio.gather(*tasks)
+
+        # 4) Сбор итогов
+        reports: List[GroupReportStructured] = []
+        for report, usage in results:
+            reports.append(report)
+            total_prompt     += usage.get("prompt_tokens", 0)
+            total_completion += usage.get("completion_tokens", 0)
+
+        tokens = TokenStat(
+            prompt=total_prompt,
+            completion=total_completion,
+            total=total_prompt + total_completion
+        )
+        return StructuredAnalyzeResponse(reports=reports, tokens=tokens)
