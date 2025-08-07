@@ -8,7 +8,7 @@ PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
 STRUCTURE_SYSTEM = (
     PROMPT_DIR / "structure.system.txt"
 ).read_text(encoding="utf-8").strip()
-# User-template с плейсхолдерами: ожидает {SCHEMA}, {DOCUMENT}, {GROUP_ID}, {GROUP_NAME}, {GROUP_DESC}, {ERRORS_BLOCK}
+# User-template с плейсхолдерами: ожидает  {DOCUMENT}, {GROUP_ID}, {GROUP_NAME}, {GROUP_DESC}, {ERRORS_BLOCK}
 STRUCTURE_USER_TEMPLATE = (
     PROMPT_DIR / "structure_user.tpl.txt"
 ).read_text(encoding="utf-8")
@@ -21,10 +21,9 @@ def build_system_prompt() -> str:
     return STRUCTURE_SYSTEM
 
 
-def build_user_prompt(schema_json: str, markdown: str, group_meta: Dict, rules: List[Dict]) -> str:
+def build_user_prompt( markdown: str, group_meta: Dict, rules: List[Dict]) -> str:
     """
     Подставляет в шаблон основные части:
-      • SCHEMA       — JSON-схема Pydantic-модели (для справки)
       • DOCUMENT     — Markdown документа
       • GROUP_ID     — group_meta['id']
       • GROUP_NAME   — group_meta['name']
@@ -38,13 +37,12 @@ def build_user_prompt(schema_json: str, markdown: str, group_meta: Dict, rules: 
         lines.append(
             f"{rule['code']} — «{rule['title']}»\n"
             f"Описание: {rule['description']}\n"
-            f"Детектор: {rule['detector']}"
+            f"Способ Детекции: {rule['detector']}"
         )
     errors_block = "\n\n".join(lines)
 
     # Привязываем правильные ключи к шаблону
     prompt = STRUCTURE_USER_TEMPLATE.format(
-        SCHEMA=schema_json,
         DOCUMENT=markdown,
         GROUP_ID=group_meta['id'],
         GROUP_NAME=group_meta.get('name', ''),

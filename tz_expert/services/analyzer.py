@@ -3,7 +3,6 @@ analyzer.py
 SGR analyze
 """
 
-import json
 import logging
 import asyncio
 from typing import List, Dict, Tuple
@@ -26,10 +25,7 @@ class AnalyzerService:
     def __init__(self, repo: RuleRepository | None = None):
         self._repo = repo or RuleRepository()
 
-    async def analyze_structured(
-        self,
-        req: StructuredAnalyzeRequest
-    ) -> StructuredAnalyzeResponse:
+    async def analyze_structured(self, req: StructuredAnalyzeRequest) -> StructuredAnalyzeResponse:
         # 1) Загрузка правил и групп
         groups_map = self._repo.get_all_groups()
         rules_map = self._repo.get_all_rules()
@@ -53,15 +49,8 @@ class AnalyzerService:
                 "schema": GroupReportStructured.model_json_schema(),
             }
 
-            schema_json = json.dumps(             # ↓ остаётся для prompt-подсказки
-                schema_dict["schema"],
-                ensure_ascii=False,
-                indent=2,
-            )
-
             system_msg = build_system_prompt()
             user_msg = build_user_prompt(
-                schema_json=schema_json,
                 markdown=req.markdown,
                 group_meta=meta,
                 rules=rules
