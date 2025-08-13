@@ -5,28 +5,23 @@ scripts/seed_db_from_xlsx.py
 
 ⚙️ Назначение
 =============
-Заполняет таблицы *error_groups* и *errors* в PostgreSQL:
+Заполняет таблицы *error_groups* и *errors* в PostgreSQL из:
+• YAML-файла groups.yaml (описания групп ошибок);
+• Excel-файла со списком ошибок.
 
-• **Группы ошибок** берутся из YAML-файла *groups.yaml* (как в оригинальном seed).  
-• **Ошибки** читаются из Excel-книги *Список ошибок.xlsx* (лист «Лист1»).
+Дополнительно:
+• Гарантированно создаёт супергруппу в таблице *error_group_groups* с id=1
+  и именем «Главная группа» (без FK).
+• Присваивает всем записям в *error_groups* значение gg_id = 1.
 
 Запуск
 ------
     cd /path/to/project/root
-    python scripts/seed_db_from_xlsx.py
+    python scripts/seed_db_from_xlsx.py [путь_к_xlsx]
 
 Требования
 ----------
 pip install pandas openpyxl pyyaml sqlalchemy
-
-Аргументы командной строки
---------------------------
-– Без аргументов             → использует файлы по умолчанию.  
-– 1-й аргумент = путь к xlsx → `python seed_db_from_xlsx.py path/to/file.xlsx`.
-
-Автор
------
-TzExpert / LLM-сервис проверки ТЗ
 """
 
 import sys
@@ -42,8 +37,9 @@ sys.path.append(str(PROJECT_ROOT))  # добавляем корень проек
 # ──────────────────────────────────────────────────────────────
 # Внешние зависимости
 # ──────────────────────────────────────────────────────────────
-import yaml           # работа с groups.yaml
-import pandas as pd   # чтение Excel
+import yaml                   # работа с groups.yaml
+import pandas as pd           # чтение Excel
+from sqlalchemy import text   # безопасные SQL с параметрами
 from sqlalchemy.exc import SQLAlchemyError
 
 # ──────────────────────────────────────────────────────────────
@@ -72,20 +68,45 @@ COLUMN_MAP = {
     "Способ детекции": "detector",
 }
 
-# --------------------------- Функции --------------------------- #
+# --------------------------- Хелперы --------------------------- #
 
+def ensure_main_supergroup(session) -> int:
+    """
+    Гарантирует наличие супергруппы в таблице error_group_groups.
+    Создаёт запись с id=1 и name='Главная группа', если её нет.
+    Возвращает id супергруппы (всегда 1).
+    """
+    # idempotent-вставка: если запись с id=1 уже существует — просто обновим имя
+    session.execute(
+        text("""
+            INSERT INTO error_group_groups (id, name)
+            VALUES (:id, :name)
+            ON CONFLICT (id) DO UPDATE
+            SET name = EXCLUDED.name
+        """),
+        {"id": 1, "name": "Главная группа"},
+    )
+    # flush — чтобы вставка попала в транзакцию до последующих апдейтов
+    session.flush()
+    return 1
+
+
+def set_all_groups_ggid(session, supergroup_id: int) -> None:
+    """
+    Проставляет всем строкам в error_groups значение gg_id = supergroup_id.
+    Делается сырой SQL, чтобы не зависеть от версии ORM-модели.
+    """
+    session.execute(text("UPDATE error_groups SET gg_id = :sid"), {"sid": supergroup_id})
+    session.flush()
+
+
+# --------------------------- Функции --------------------------- #
 
 def load_groups(session) -> Dict[str, int]:
     """
     Загружает группы из groups.yaml в БД и возвращает
     словарь «код_ошибки → id_группы», сформированный на основе
     раздела *codes* внутри YAML.
-
-    Args:
-        session (Session): открытая сессия SQLAlchemy
-
-    Returns:
-        Dict[str, int]: mapping «E01A → 1»
     """
     # ① Читаем YAML
     groups_raw: List[Dict[str, Any]] = yaml.safe_load(
@@ -94,13 +115,13 @@ def load_groups(session) -> Dict[str, int]:
 
     # ② Сохраняем / обновляем группы в БД
     for g in groups_raw:
-        gid = int(g["id"].lstrip("G"))          # "G03" → 3
-        grp = session.get(ErrorGroup, gid) or ErrorGroup(id=gid)
+        gid = int(g["id"].lstrip("G"))             # "G03" → 3
+        grp = session.get(ErrorGroup, gid) or ErrorGroup(id=gid)  # upsert по PK
         grp.name = g["name"]
         grp.group_description = g.get("description", "")
         grp.is_deleted = g.get("is_deleted", False)
-        session.add(grp)                        # upsert
-    session.flush()  # fix id-ы сразу, но без commit
+        session.add(grp)
+    session.flush()  # фиксируем id-ы в рамках транзакции
 
     # ③ Строим mapping «код_ошибки → id_группы»
     code_to_group: Dict[str, int] = {}
@@ -115,13 +136,6 @@ def excel_to_records(xlsx_path: Path) -> List[Dict[str, Any]]:
     """
     Читает Excel и приводит строки к формату,
     совместимому с ORM `Error`.
-
-    Args:
-        xlsx_path (Path): путь к книге Excel
-
-    Returns:
-        List[Dict[str, Any]]: 
-            [{'code': 'E01A', 'title': '...', 'description': '...', 'detector': 'Invalid'}, …]
     """
     # ① Загружаем лист в DataFrame
     df: pd.DataFrame = pd.read_excel(
@@ -140,22 +154,26 @@ def excel_to_records(xlsx_path: Path) -> List[Dict[str, Any]]:
 
 def seed(xlsx_path: Path = DEFAULT_XLSX_PATH) -> None:
     """
-    Основная точка входа: заливает группы и ошибки в БД.
-
-    Args:
-        xlsx_path (Path, optional): Excel с ошибками. По умолчанию DEFAULT_XLSX_PATH.
+    Основная точка входа: заливает группы и ошибки в БД
+    + создаёт супергруппу (id=1, «Главная группа»)
+    + проставляет gg_id=1 для всех error_groups.
     """
-    # ① Создаём таблицы, если их ещё нет
+    # ① Создаём таблицы, если их ещё нет (по описанию ORM-моделей)
     Base.metadata.create_all(bind=engine)
 
     session = SessionLocal()
     try:
-        # ② ───────── загрузка групп ─────────
+        # ② Гарантируем супергруппу (id=1)
+        main_gid = ensure_main_supergroup(session)  # → 1
+
+        # ③ Загружаем/обновляем группы из YAML
         code_to_group = load_groups(session)
 
-        # ③ ───────── загрузка ошибок ─────────
-        error_records = excel_to_records(xlsx_path)
+        # ④ Всем группам ошибок проставляем gg_id = 1
+        set_all_groups_ggid(session, main_gid)
 
+        # ⑤ Загружаем ошибки из Excel
+        error_records = excel_to_records(xlsx_path)
         for rec in error_records:
             code = rec["code"]
             # upsert по коду
@@ -168,9 +186,9 @@ def seed(xlsx_path: Path = DEFAULT_XLSX_PATH) -> None:
             err.group_id = code_to_group.get(code)  # может быть None, если код не найден
             session.add(err)
 
-        # ④ Коммитим все изменения одной транзакцией
+        # ⑥ Коммитим все изменения одной транзакцией
         session.commit()
-        print(f"✅ Данные из «{xlsx_path.name}» загружены в Postgres.")
+        print(f"✅ Данные загружены. Супергруппа id={main_gid} ('Главная группа'), gg_id у всех групп = {main_gid}.")
     except (FileNotFoundError, SQLAlchemyError, KeyError, ValueError) as exc:
         session.rollback()
         print("❌ Ошибка при сидировании:", exc)
