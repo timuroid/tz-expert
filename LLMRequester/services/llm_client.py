@@ -14,7 +14,7 @@ _SEM = asyncio.Semaphore(settings.MAX_CONCURRENT)
 _client = AsyncOpenAI(
     api_key=settings.YC_API_KEY,
     base_url=settings.YC_BASE_URL,
-    timeout=60,
+    timeout=180,
 )
 
 _LOG_DIR = Path(__file__).resolve().parents[2] / "llm_requests"
