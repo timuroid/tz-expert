@@ -12,23 +12,12 @@ class ChatMessage(BaseModel):
     content: str
 
 class RunRequest(BaseModel):
-    """
-    Один запуск для одной группы.
-    - messages: как минимум 2 сообщения (system, user)
-    - schema: опционально; если не задана — вернём текст (string), а не JSON
-    - model: опционально; если не задана — yandexgpt/latest
-    - mode: опционально; если не задан — "sync"
-    """
     messages: List[ChatMessage]
-    schema_: Optional[Dict[str, Any]] = Field(
-        default=None, 
-        alias="schema",
-        description="{'name':..., 'schema': {...}}; если None — без Structured Output"
-    )
+    schema_: Optional[Dict[str, Any]] = Field(default=None, alias="schema")  # алиас во избежание коллизии с .schema()
     model: Optional[str] = None
     mode: Optional[Literal["sync", "async"]] = None
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 class Usage(BaseModel):
     prompt_tokens: int

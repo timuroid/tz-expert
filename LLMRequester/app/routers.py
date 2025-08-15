@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, HTTPException
 from LLMRequester.schemas import RunRequest, RunResponse, Usage, Cost
 from LLMRequester.services.llm_client import ask_llm, LLMError
 from LLMRequester.services.pricing import normalize_model_label, price_per_1k_rub, price_per_1m_rub
-from LLMRequester.services.default_schema import DEFAULT_GROUP_REPORT_SCHEMA  # <- добавили
+from LLMRequester.services.llm_schema import default_structured_output_schema  # <-- pydantic->JSON Schema
 
 router = APIRouter(prefix="/v1/structured", tags=["LLM Requester"])
 
@@ -16,14 +16,14 @@ async def run(req: RunRequest = Body(...)):
 
     mode = req.mode or "sync"
 
-    # если клиент не прислал schema — используем дефолтную (хардкод)
-    incoming_schema = getattr(req, "schema_", None) or getattr(req, "schema", None)
-    schema_payload = incoming_schema or DEFAULT_GROUP_REPORT_SCHEMA
+    # Если клиент прислал schema (через алиас schema_) — используем её,
+    # иначе генерируем из pydantic-модели внутри этого сервиса.
+    schema_payload = req.schema_ if isinstance(req.schema_, dict) else default_structured_output_schema()
 
     try:
         result, usage, model_uri, attempts = await ask_llm(
             messages=[m.model_dump() for m in req.messages],
-            json_schema=schema_payload,   # всегда идём со схемой
+            json_schema=schema_payload,   # всегда Structured Output
             model=req.model,
         )
     except LLMError as e:
@@ -51,4 +51,3 @@ async def run(req: RunRequest = Body(...)):
         model_uri=model_uri,
         attempts=attempts,
     )
-
