@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, HTTPException
 from LLMRequester.schemas import RunRequest, RunResponse, Usage, Cost
 from LLMRequester.services.llm_client import ask_llm, LLMError
 from LLMRequester.services.pricing import normalize_model_label, price_per_1k_rub, price_per_1m_rub
+from LLMRequester.services.default_schema import DEFAULT_GROUP_REPORT_SCHEMA  # <- добавили
 
 router = APIRouter(prefix="/v1/structured", tags=["LLM Requester"])
 
@@ -15,10 +16,14 @@ async def run(req: RunRequest = Body(...)):
 
     mode = req.mode or "sync"
 
+    # если клиент не прислал schema — используем дефолтную (хардкод)
+    incoming_schema = getattr(req, "schema_", None) or getattr(req, "schema", None)
+    schema_payload = incoming_schema or DEFAULT_GROUP_REPORT_SCHEMA
+
     try:
         result, usage, model_uri, attempts = await ask_llm(
             messages=[m.model_dump() for m in req.messages],
-            json_schema=req.schema_,   # если у тебя уже применён алиас; иначе req.schema
+            json_schema=schema_payload,   # всегда идём со схемой
             model=req.model,
         )
     except LLMError as e:

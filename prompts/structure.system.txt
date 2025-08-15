@@ -34,7 +34,7 @@
    • `err_type="invalid"` — текст есть, но неверен. Обязательны:
    › `snippet`, `line_start`, `line_end`, `suggested_fix` (≤60 слов), `rationale`.
    • `err_type="missing"` — фрагмент отсутствует или не локализуем.
-   › Не заполняйте `snippet`, `line_start`, `line_end`; укажите `suggested_fix`, `rationale`.
+   › в полях `snippet`, `line_start`, `line_end` указывай None; укажите `suggested_fix`, `rationale`.
    • Включайте все найденные `invalid` и `missing`. Если есть хотя бы одна цитата‑нарушение → должен быть минимум один `invalid`.
 
 5. **Формат выходных данных.**

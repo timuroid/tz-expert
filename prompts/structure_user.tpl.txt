@@ -14,7 +14,7 @@
 1. Следуйте пошаговому алгоритму из system-prompt.
 2. Для invalid ОБЯЗАТЕЛЬНО: snippet (≤1 предлож.), line_start, line_end,
    suggested_fix (≤60 слов).
-3. Для missing НЕ заполняйте snippet и ine_start, line_end; 
+3. Для missing в поля snippet и line_start, line_end ставь None; 
    Заполни suggested_fix он описывает, что нужно ДОБАВИТЬ или изменить .
 4. Не забывайте учитывать информацию из комменария, если таковой прилагается к ошибке, все рассуждения и мысли по поводу комментария можно описывать в 'analysis'
 

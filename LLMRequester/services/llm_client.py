@@ -27,24 +27,6 @@ class LLMError(RuntimeError):
 # --- ПОСЛЕ объявления LLMError вставь хелпер ---
 LOGGER = logging.getLogger("uvicorn.error")  # так сообщения окажутся в консоли uvicorn
 
-def _log_schema_to_console(schema: Optional[Dict[str, Any]], *, pretty: bool = True, max_len: int = 20000) -> None:
-    """
-    Пишем схему в логи. Ограничиваем размер, чтобы не зашумлять вывод.
-    pretty=True — печать с отступами; max_len — обрезка в символах.
-    """
-    if not schema:
-        LOGGER.info("LLMRequester: schema: <none>")
-        return
-    try:
-        payload = json.dumps(schema, ensure_ascii=False, indent=2 if pretty else None)
-        plen = len(payload)
-        if plen > max_len:
-            LOGGER.info("LLMRequester: schema (%d bytes, truncated to %d): %s…", plen, max_len, payload[:max_len])
-        else:
-            LOGGER.info("LLMRequester: schema (%d bytes): %s", plen, payload)
-    except Exception as e:
-        LOGGER.warning("LLMRequester: failed to log schema: %s", e)
-
 
 def _mk_uri(model: Optional[str]) -> str:
     if not model:
@@ -85,8 +67,6 @@ async def ask_llm(
         ),
         encoding="utf-8"
     )
-
-    _log_schema_to_console(json_schema)
 
     base_payload: Dict[str, Any] = {
         "model": model_uri,
