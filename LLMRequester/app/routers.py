@@ -1,4 +1,5 @@
 """
+app/routers.py
 HTTP-роуты LLM Requester: один эндпойнт /v1/structured/run
 """
 from fastapi import APIRouter, Body, HTTPException

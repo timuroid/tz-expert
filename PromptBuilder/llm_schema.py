@@ -1,4 +1,5 @@
 """
+llm_schema.py
 Pydantic-модели ответа LLM (локальная копия для JSON Schema).
 Не импортируем из tz_expert — сервисы изолированы.
 """

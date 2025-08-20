@@ -1,4 +1,5 @@
 """
+core/db.py
 SQLAlchemy engine/session и Base — локальные, не из tz_expert.
 """
 from sqlalchemy import create_engine

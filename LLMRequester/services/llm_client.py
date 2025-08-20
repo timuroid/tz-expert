@@ -1,3 +1,9 @@
+"""
+services/llm_client.py
+LLM Client для выполнения запросов к OpenAI-совместимым API (Yandex Cloud).
+Использует асинхронный клиент OpenAI и поддерживает Structured Output.
+"""
+
 from __future__ import annotations
 import asyncio
 import json

@@ -1,4 +1,5 @@
 """
+services/default_schema.py
 Дефолтная JSON Schema для Structured Output (GroupReportStructured).
 Используется, если клиент не прислал schema в запросе.
 """

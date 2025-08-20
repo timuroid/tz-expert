@@ -1,4 +1,5 @@
 """
+app/main.py
 Запуск: uvicorn PromptBuilder.app.main:app --reload --port 8010
 """
 from fastapi import FastAPI

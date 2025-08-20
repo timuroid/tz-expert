@@ -1,4 +1,5 @@
 """
+services/builder.py
 Фасад: markdown + gg_id -> List[BuildItem] и общая JSON Schema.
 
 Изменения:
@@ -41,9 +42,9 @@ class PromptBuilderService:
 
             # mini-адаптер метаданных для шаблона (чтобы не менять templates.py)
             meta_for_template = {
-                "id": g["group_code"],                      # подставим и как GROUP_ID, и как GROUP_NAME
-                "name": g["group_code"],
-                "system_prompt": g["group_description"],
+                "id": g["group_code"],              # GROUP_ID <- код группы (напр. "General 1")
+                "name": g.get("group_name", ""),  # GROUP_NAME <- название группы
+                "system_prompt": g["group_description"],  # GROUP_DESC <- описание группы
             }
             user_msg, _note = build_user_prompt(
                 markdown=markdown,
@@ -51,12 +52,13 @@ class PromptBuilderService:
                 rules=rules
             )
 
-            # Новый формат item
+            # Новый формат item: отдельные code и name
             items.append(BuildItem(
                 groupId=g["group_id"],
-                groupName=g["group_code"],
+                groupCode=g["group_code"],
+                groupName=g.get("group_name", ""),
                 groupDescription=g["group_description"],
-                errorCodeIds=g["error_ids"],               # <-- переименованное поле
+                errorCodeIds=g["error_ids"],
                 messages=[
                     {"role": "system", "content": system_msg},
                     {"role": "user",   "content": user_msg},

@@ -1,4 +1,5 @@
 """
+app/main.py
 Запуск: uvicorn LLMRequester.app.main:app --reload --port 8020
 """
 from fastapi import FastAPI

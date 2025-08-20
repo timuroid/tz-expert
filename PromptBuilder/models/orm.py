@@ -1,4 +1,5 @@
 """
+models/orm.py
 ORM-модели под текущую БД:
 - error_group_groups (GG)
 - error_groups (группа, FK -> GG)
@@ -18,6 +19,7 @@ class ErrorGroup(Base):
     __tablename__ = "error_groups"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Text, nullable=False)
+    code = Column(Text, nullable=True)  # код группы, например "G7"
     group_description = Column(Text, nullable=True)
     is_deleted = Column(Boolean, default=False)
     gg_id = Column(Integer, ForeignKey("error_group_groups.id"), nullable=True)

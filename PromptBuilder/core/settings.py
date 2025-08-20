@@ -1,4 +1,4 @@
-# PromptBuilder/core/settings.py
+#core/settings.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
