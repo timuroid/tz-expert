@@ -20,8 +20,19 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = ["*"]  # по вашему пожеланию
 
-# (добавьте домены сюда при работе за прокси/https, если потребуется)
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
+# --- безопасность за прокси/https (если есть nginx/traefik) ---
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # nginx должен прокидывать X-Forwarded-Proto
+
+# --- доверенные источники для CSRF (указывать со схемой!) ---
+CSRF_TRUSTED_ORIGINS = [
+    "https://promtb-admin.timuroid.ru",  # твой внешний домен из скрина
+    # ниже — удобно оставить локалки на время разработки
+    "http://localhost:8030",
+    "http://127.0.0.1:8030",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # ПРИЛОЖЕНИЯ
