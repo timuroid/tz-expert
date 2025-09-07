@@ -7,8 +7,9 @@ from typing import Dict, List, Tuple
 
 PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
-STRUCTURE_SYSTEM = (PROMPT_DIR / "structure.system.txt").read_text(encoding="utf-8").strip()
-STRUCTURE_USER_TEMPLATE = (PROMPT_DIR / "structure_user.tpl.txt").read_text(encoding="utf-8")
+# Минимально: читаем только Markdown-версии шаблонов
+STRUCTURE_SYSTEM = (PROMPT_DIR / "structure.system.md").read_text(encoding="utf-8").strip()
+STRUCTURE_USER_TEMPLATE = (PROMPT_DIR / "structure_user.tpl.md").read_text(encoding="utf-8")
 
 def build_system_prompt() -> str:
     return STRUCTURE_SYSTEM
