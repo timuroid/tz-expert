@@ -14,13 +14,9 @@ STRUCTURE_USER_TEMPLATE = (PROMPT_DIR / "structure_user.tpl.md").read_text(encod
 def build_system_prompt() -> str:
     return STRUCTURE_SYSTEM
 
-def _truncate(text: str, limit: int = 20000) -> tuple[str, str | None]:
-    if len(text) <= limit:
-        return text, None
-    return text[:limit], f"Документ усечён до {limit} символов."
 
 def build_user_prompt(markdown: str, group_meta: Dict, rules: List[Dict]) -> Tuple[str, str | None]:
-    md, note = _truncate(markdown)
+    md, note = markdown, None
     lines: List[str] = []
     for r in rules:
         lines.append(
