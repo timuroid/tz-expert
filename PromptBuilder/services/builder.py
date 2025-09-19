@@ -1,68 +1,97 @@
-"""
-services/builder.py
-Фасад: markdown + gg_id -> List[BuildItem] и общая JSON Schema.
+﻿"""Service for constructing LLM prompts for the two-step pipeline."""
+from __future__ import annotations
 
-Изменения:
-- в BuildItem записываем errorCodeIds вместо errorCodes;
-- в ответе схемой управляет вызывающий (router), тут только метод output_schema().
-"""
-from typing import List, Dict, Any
-from PromptBuilder.schemas import BuildItem
+from typing import Any, Dict, List, Optional
+
+from PromptBuilder.schemas import (
+    BuildItem,
+    Step1BuildRequest,
+    Step1BuildResponse,
+    Step2BuildRequest,
+    Step2BuildResponse,
+    StepPrompt,
+    step1_output_schema,
+    step2_output_schema,
+)
 from PromptBuilder.services.repository import Repo
-from PromptBuilder.services.templates import build_system_prompt, build_user_prompt
-from PromptBuilder.llm_schema import GroupReportStructured
+from PromptBuilder.services.templates import (
+    build_step1_prompt,
+    build_step2_prompt,
+)
 
 
 class PromptBuilderService:
-    """Высокоуровневый сервис сборки messages для LLM по группам внутри gg_id."""
+    """Constructs system/user prompt pairs for LLM requests."""
 
-    def __init__(self, repo: Repo | None = None):
+    def __init__(self, repo: Repo | None = None) -> None:
         self._repo = repo or Repo()
 
-    def output_schema(self) -> Dict[str, Any]:
-        """
-        Возвращает JSON Schema для Structured Output.
-        Её кладём на корневой уровень ответа (не в каждый item).
-        """
-        return {"name": "GroupReport", "schema": GroupReportStructured.model_json_schema()}
-
     def build_items(self, *, markdown: str, gg_id: int) -> List[BuildItem]:
-        """
-        Собирает список BuildItem по всем группам внутри указанного gg_id.
-        """
+        """Backward-compatible helper returning step-1 items."""
+        return self.build_step1_items(markdown=markdown, gg_id=gg_id)
+
+    def build_step1_items(
+        self, *, markdown: str, gg_id: int, limit: Optional[int] = None
+    ) -> List[BuildItem]:
         groups = self._repo.get_groups_by_ggid(gg_id)
+        if limit is not None:
+            groups = groups[:limit]
+
         items: List[BuildItem] = []
-
         for g in groups:
-            # Для текста промпта нужны детальные сведения об ошибках (код/описание/детектор)
             rules = self._repo.get_rules_by_ids(g["error_ids"])
-
-            # System/User сообщения
-            system_msg = build_system_prompt()
-
-            # mini-адаптер метаданных для шаблона (чтобы не менять templates.py)
-            meta_for_template = {
-                "id": g["group_code"],              # GROUP_ID <- код группы (напр. "General 1")
-                "name": g.get("group_name", ""),  # GROUP_NAME <- название группы
-                "system_prompt": g["group_description"],  # GROUP_DESC <- описание группы
-            }
-            user_msg, _note = build_user_prompt(
+            system_msg, user_msg = build_step1_prompt(
                 markdown=markdown,
-                group_meta=meta_for_template,
-                rules=rules
+                group_meta={
+                    "id": g["group_id"],
+                    "code": g["group_code"],
+                    "name": g.get("group_name", ""),
+                    "group_description": g["group_description"],
+                },
+                rules=rules,
             )
+            items.append(
+                BuildItem(
+                    groupId=g["group_id"],
+                    groupCode=g["group_code"],
+                    groupName=g.get("group_name", ""),
+                    groupDescription=g["group_description"],
+                    errorCodeIds=g["error_ids"],
+                    messages=[
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg},
+                    ],
+                )
+            )
+        return items
 
-            # Новый формат item: отдельные code и name
-            items.append(BuildItem(
-                groupId=g["group_id"],
-                groupCode=g["group_code"],
-                groupName=g.get("group_name", ""),
-                groupDescription=g["group_description"],
-                errorCodeIds=g["error_ids"],
+    def build_step1_response(self, req: Step1BuildRequest) -> Step1BuildResponse:
+        items = self.build_step1_items(
+            markdown=req.markdown,
+            gg_id=req.ggid,
+            limit=req.limit,
+        )
+        return Step1BuildResponse(
+            ggid=req.ggid,
+            items=items,
+            schema_=step1_output_schema(),
+        )
+
+    def build_step2_prompt(self, req: Step2BuildRequest) -> Step2BuildResponse:
+        system_msg, user_msg = build_step2_prompt(
+            markdown=req.markdown,
+            step1_results_json=req.step1_results,
+        )
+        return Step2BuildResponse(
+            prompt=StepPrompt(
                 messages=[
                     {"role": "system", "content": system_msg},
-                    {"role": "user",   "content": user_msg},
-                ],
-            ))
+                    {"role": "user", "content": user_msg},
+                ]
+            ),
+            schema_=step2_output_schema(),
+        )
 
-        return items
+    def output_schema(self) -> Dict[str, Any]:
+        """Default schema for the legacy /build endpoint."""
+        return step1_output_schema()

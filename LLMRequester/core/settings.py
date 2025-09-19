@@ -1,11 +1,8 @@
-"""
-core/settings.py
-Настройки LLM Requester.
-Читает YC_* переменные, лимит конкурентности и, при желании, кастомный прайсинг.
-"""
+﻿"""Settings for LLMRequester."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Optional
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -18,7 +15,7 @@ class Settings(BaseSettings):
     YC_FOLDER_ID: str = Field(..., description="Folder ID for Yandex Cloud")
     YC_BASE_URL: str = Field("https://llm.api.cloud.yandex.net/v1", description="OpenAI-compatible base URL")
 
-    MAX_CONCURRENT: int = Field(10, description="Семафор на параллельные запросы")
+    MAX_CONCURRENT: int = Field(10, description="Maximum number of parallel requests to the provider")
+
 
 settings = Settings()
-

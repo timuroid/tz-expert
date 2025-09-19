@@ -1,34 +1,29 @@
-"""
-app/routers.py
-HTTP-роуты LLM Requester: один эндпойнт /v1/structured/run
-"""
+﻿"""FastAPI router for the LLMRequester service."""
 from fastapi import APIRouter, Body, HTTPException
+
 from LLMRequester.schemas import RunRequest, RunResponse, Usage, Cost
 from LLMRequester.services.llm_client import ask_llm, LLMError
 from LLMRequester.services.pricing import normalize_model_label, price_per_1k_rub, price_per_1m_rub
-from LLMRequester.services.llm_schema import default_structured_output_schema  # <-- pydantic->JSON Schema
 
 router = APIRouter(prefix="/v1/structured", tags=["LLM Requester"])
 
-@router.post("/run", response_model=RunResponse, summary="Выполнить один LLM-запрос (messages [+schema])")
+
+@router.post("/run", response_model=RunResponse, summary="Call the LLM (messages [+schema])")
 async def run(req: RunRequest = Body(...)):
     if not req.messages or len(req.messages) < 2:
         raise HTTPException(400, detail="Provide at least 2 messages (system + user).")
 
     mode = req.mode or "sync"
-
-    # Если клиент прислал schema (через алиас schema_) — используем её,
-    # иначе генерируем из pydantic-модели внутри этого сервиса.
-    schema_payload = req.schema_ if isinstance(req.schema_, dict) else default_structured_output_schema()
+    schema_payload = req.schema_ if isinstance(req.schema_, dict) else None
 
     try:
         result, usage, model_uri, attempts = await ask_llm(
             messages=[m.model_dump() for m in req.messages],
-            json_schema=schema_payload,   # всегда Structured Output
+            json_schema=schema_payload,
             model=req.model,
         )
-    except LLMError as e:
-        raise HTTPException(422, detail=str(e))
+    except LLMError as exc:
+        raise HTTPException(422, detail=str(exc))
 
     label = normalize_model_label(model_uri)
     price_1k = price_per_1k_rub(label, mode)

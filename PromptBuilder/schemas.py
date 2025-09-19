@@ -1,60 +1,64 @@
-"""
+﻿"""
 schemas.py
-API DTO для PromptBuilder.
+API DTO for PromptBuilder (two-step pipeline).
 
-Изменения:
-- нет секции meta в ответе;
-- в item поле errorCodes переименовано в errorCodeIds;
-- схема (JSON Schema) прикладывается один раз на корневом уровне ответа.
+Purpose:
+- DTOs for building prompts per step;
+- errorCodeIds stored in BuildItem for prompt context;
+- JSON Schemas provided to LLM for strict structured output.
 """
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
+from PromptBuilder.analysis_schemas import (
+    GroupResult,
+    FinalReportBySections,
+)
+
 
 class BuildRequest(BaseModel):
-    """Вход: Markdown + идентификатор группы групп (ggid)."""
+    """Input: markdown document + classifier id (ggid)."""
+
     markdown: str
     ggid: int
 
 
 class BuildItem(BaseModel):
-    """
-    Один элемент для LLM-запроса по конкретной группе.
-    """
-    groupId: int                     # числовой id группы (из БД)
-    groupCode: str                   # код группы (например, "General 1")
-    groupName: str                   # название группы (человекочитаемое имя)
+    """One system/user prompt pair for an error group."""
+
+    groupId: int
+    groupCode: str
+    groupName: str
     groupDescription: Optional[str] = None
-    errorCodeIds: List[int]          # Список ID ошибок, входящих в группу (именно ID)
-    messages: List[Dict[str, str]]   # [{"role":"system","content":"..."}, {"role":"user","content":"..."}]
+    errorCodeIds: List[int]
+    messages: List[Dict[str, str]]  # [{"role": "system", ...}, {"role": "user", ...}]
 
 
 class BuildResponse(BaseModel):
-    """
-    Ответ: ggid наверху, список items и ОДНА общая схема.
-    """
+    """Response of /build: prompts plus schema."""
+
     ggid: int
     items: List[BuildItem]
-    schema_: Dict[str, Any] = Field(..., alias="schema")  # алиас, чтобы ключ в JSON был "schema"
-    # Дополнительно: полная информация по указанной группе-группе (как в latest-gg)
-    gg: Optional['GGMeta'] = None
-    groups: Optional[List['GGGroup']] = None
+    schema_: Dict[str, Any] = Field(..., alias="schema")
+    gg: Optional["GGMeta"] = None
+    groups: Optional[List["GGGroup"]] = None
 
-    # Разрешаем сериализацию по alias (schema_)
     model_config = ConfigDict(populate_by_name=True)
 
 
-# ===== Новые схемы для GET latest-gg и POST создания GG =====
+# ===== DTO for GG catalogue management =====
+
 
 class GGMeta(BaseModel):
-    """Метаданные Group Group (error_group_groups)."""
     id: int
     name: str
 
 
 class BaseError(BaseModel):
-    """Базовая схема ошибки (общие поля)."""
     code: str
     name: str
     description: str
@@ -62,12 +66,10 @@ class BaseError(BaseModel):
 
 
 class GGError(BaseError):
-    """Ошибка внутри группы (в выдаче latest-gg присутствует id)."""
     id: int
 
 
 class GGGroup(BaseModel):
-    """Группа ошибок с вложенными ошибками."""
     id: int
     name: str
     code: Optional[str] = None
@@ -77,13 +79,10 @@ class GGGroup(BaseModel):
 
 
 class LatestGGResponse(BaseModel):
-    """Ответ для GET /latest-gg."""
     ggid: int
     gg: GGMeta
     groups: List[GGGroup]
 
-
-# ----- POST создание GG -----
 
 class CreateGGError(BaseError):
     pass
@@ -98,11 +97,53 @@ class CreateGGGroup(BaseModel):
 
 
 class CreateGGRequest(BaseModel):
-    """Тело POST: создание нового GG с группами и ошибками."""
-    gg: Dict[str, Any] = Field(..., description="Объект GG, минимум name")
+    gg: Dict[str, Any] = Field(..., description="GG metadata (at minimum: name)")
     groups: List[CreateGGGroup]
 
 
 class CreateGGResponse(LatestGGResponse):
-    """Возвращаем созданный GG в том же формате, что и latest-gg."""
     pass
+
+
+# ===== DTO for pipeline steps =====
+
+
+class Step1BuildRequest(BuildRequest):
+    """Build prompts for step 1."""
+
+    limit: Optional[int] = Field(default=None, ge=1, description="Optional cap on number of groups")
+
+
+class StepPrompt(BaseModel):
+    messages: List[Dict[str, str]]
+
+
+class Step1BuildResponse(BaseModel):
+    ggid: int
+    items: List[BuildItem]
+    schema_: Dict[str, Any] = Field(..., alias="schema")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class Step2BuildRequest(BaseModel):
+    markdown: str
+    step1_results: str = Field(..., description="JSON array of GroupResult (all groups)")
+
+
+class Step2BuildResponse(BaseModel):
+    prompt: StepPrompt
+    schema_: Dict[str, Any] = Field(..., alias="schema")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+# ===== Helpers =====
+
+
+def step1_output_schema() -> Dict[str, Any]:
+    return {"name": "Step1GroupResult", "schema": GroupResult.model_json_schema()}
+
+
+def step2_output_schema() -> Dict[str, Any]:
+    return {"name": "FinalReportBySections", "schema": FinalReportBySections.model_json_schema()}

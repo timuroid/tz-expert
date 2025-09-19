@@ -1,52 +1,49 @@
-"""
-services/llm_schema.py
-Pydantic-модели ожидаемого ответа LLM и генератор JSON Schema.
-НЕ импортируем ничего из других сервисов — полная изоляция.
-"""
+﻿"""Pydantic schema used to build JSON Schema for structured output."""
 from typing import List, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field
 
-# Типы
 ErrType = Literal["invalid", "missing"]
 Verdict = Literal["error_present", "no_error"]
 
+
 class RetrievalChunk(BaseModel):
-    text: str = Field(..., description="Фрагмент документа (≤120 слов)")
-    line_start: int = Field(..., ge=1, description="Номер начала фрагмента")
-    line_end: int = Field(..., ge=1, description="Номер конца фрагмента")
+    text: str = Field(..., description="Snippet of source text (≤120 chars)")
+    line_start: int = Field(..., ge=1, description="First line number in the snippet")
+    line_end: int = Field(..., ge=1, description="Last line number in the snippet")
+
 
 class ThoughtProcess(BaseModel):
-    retrieval: List[RetrievalChunk] = Field(..., description="1–5 ключевых фрагментов")
-    analysis: str = Field(..., description="Почему это ошибка?")
-    critique: str = Field(..., description="Самокритика рассуждений")
-    verification: str = Field(..., description="Окончательная проверка и вывод")
+    retrieval: List[RetrievalChunk] = Field(..., description="1-5 retrieved fragments")
+    analysis: str = Field(..., description="Reasoning/analysis text")
+    critique: str = Field(..., description="Self critique")
+    verification: str = Field(..., description="Verification notes")
+
 
 class ErrorInstance(BaseModel):
-    err_type: ErrType = Field(..., description="'invalid' или 'missing'")
-    snippet: Optional[str] = Field(None, description="Короткая цитата (≤1 предложение)")
-    line_start: Optional[int] = Field(None, ge=1, description="Старт цитаты")
-    line_end: Optional[int] = Field(None, ge=1, description="Конец цитаты")
-    suggested_fix: Optional[str] = Field(None, description="Рекомендация  ≤60 слов")
-    rationale: str = Field(..., description="Обоснование решения")
+    err_type: ErrType = Field(..., description="invalid | missing")
+    snippet: Optional[str] = Field(None, description="Optional text snippet")
+    line_start: Optional[int] = Field(None, ge=1, description="Start line number")
+    line_end: Optional[int] = Field(None, ge=1, description="End line number")
+    suggested_fix: Optional[str] = Field(None, description="Suggested fix in plain text")
+    rationale: str = Field(..., description="Why this is an issue")
+
 
 class ErrorAnalysisStructured(BaseModel):
-    code: str = Field(..., description="Код ошибки (E-код)")
-    process: ThoughtProcess = Field(..., description="Trace рассуждений")
-    verdict: Verdict = Field(..., description="'error_present' или 'no_error'")
-    instances: List[ErrorInstance] = Field(..., description="Экземпляры ошибки")
+    code: str = Field(..., description="Error code")
+    process: ThoughtProcess = Field(..., description="Trace of reasoning")
+    verdict: Verdict = Field(..., description="error_present | no_error")
+    instances: List[ErrorInstance] = Field(..., description="Instances discovered")
+
 
 class GroupReportStructured(BaseModel):
-    group_id: str = Field(..., description="ID группы (например, G03)")
-    preliminary_notes: str = Field(..., description="Краткий обзор (≤120 слов)")
-    errors: List[ErrorAnalysisStructured] = Field(..., description="Анализ по каждой ошибке")
-    overall_critique: Optional[str] = Field(None, description="Общее заключение/рекомендации")
+    group_id: str = Field(..., description="Classifier group id")
+    preliminary_notes: str = Field(..., description="Short notes about the group")
+    errors: List[ErrorAnalysisStructured] = Field(..., description="Analysed errors")
+    overall_critique: Optional[str] = Field(None, description="Optional overall critique")
+
 
 def default_structured_output_schema() -> Dict[str, Any]:
-    """
-    Возвращает JSON Schema для response_format=json_schema в формате,
-    которого ожидает OpenAI-совместимый эндпоинт Яндекса:
-    { "name": "<любое имя>", "schema": <pydantic-json-schema> }
-    """
+    """Return JSON schema usable in response_format=json_schema."""
     return {
         "name": "GroupReport",
         "schema": GroupReportStructured.model_json_schema(),

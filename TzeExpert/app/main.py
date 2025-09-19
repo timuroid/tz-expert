@@ -1,0 +1,19 @@
+﻿"""Запуск: uvicorn TzeExpert.app.main:app --reload --port 8030"""
+import logging
+from fastapi import FastAPI
+
+from TzeExpert.app.routers import router
+
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+app = FastAPI(
+    title="TzeExpert API",
+    version="1.0.0",
+    description="Оркестратор двухшагового аудита: Step1 (GroupResult), Step2 (FinalReportBySections).",
+)
+
+app.include_router(router)

@@ -1,8 +1,4 @@
-"""
-services/default_schema.py
-Дефолтная JSON Schema для Structured Output (GroupReportStructured).
-Используется, если клиент не прислал schema в запросе.
-"""
+﻿"""Default JSON schema for legacy structured-output experiments."""
 
 DEFAULT_GROUP_REPORT_SCHEMA = {
     "name": "GroupReport",
@@ -10,23 +6,16 @@ DEFAULT_GROUP_REPORT_SCHEMA = {
         "$defs": {
             "ErrorAnalysisStructured": {
                 "properties": {
-                    "code": {
-                        "description": "Код ошибки (E-код)",
-                        "title": "Code",
-                        "type": "string",
-                    },
-                    "process": {
-                        "$ref": "#/$defs/ThoughtProcess",
-                        "description": "Trace рассуждений",
-                    },
+                    "code": {"description": "Error code (E##)", "title": "Code", "type": "string"},
+                    "process": {"$ref": "#/$defs/ThoughtProcess", "description": "Trace of reasoning"},
                     "verdict": {
-                        "description": "'error_present' или 'no_error'",
+                        "description": "error_present | no_error",
                         "enum": ["error_present", "no_error"],
                         "title": "Verdict",
                         "type": "string",
                     },
                     "instances": {
-                        "description": "Список найденных/отсутствующих экземпляров",
+                        "description": "List of detected instances",
                         "items": {"$ref": "#/$defs/ErrorInstance"},
                         "title": "Instances",
                         "type": "array",
@@ -39,7 +28,7 @@ DEFAULT_GROUP_REPORT_SCHEMA = {
             "ErrorInstance": {
                 "properties": {
                     "err_type": {
-                        "description": "'invalid' или 'missing'",
+                        "description": "invalid | missing",
                         "enum": ["invalid", "missing"],
                         "title": "Err Type",
                         "type": "string",
@@ -47,29 +36,29 @@ DEFAULT_GROUP_REPORT_SCHEMA = {
                     "snippet": {
                         "anyOf": [{"type": "string"}, {"type": "null"}],
                         "default": None,
-                        "description": "Короткая цитата из текста  (≤1 предложение, обычно 3-7 слов)",
+                        "description": "Optional text snippet",
                         "title": "Snippet",
                     },
                     "line_start": {
                         "anyOf": [{"minimum": 1, "type": "integer"}, {"type": "null"}],
                         "default": None,
-                        "description": "номер строки начала цитаты",
+                        "description": "First line number",
                         "title": "Line Start",
                     },
                     "line_end": {
                         "anyOf": [{"minimum": 1, "type": "integer"}, {"type": "null"}],
                         "default": None,
-                        "description": "номер строки окончания цитаты",
+                        "description": "Last line number",
                         "title": "Line End",
                     },
                     "suggested_fix": {
                         "anyOf": [{"type": "string"}, {"type": "null"}],
                         "default": None,
-                        "description": "Рекомендация  ≤60 слов",
+                        "description": "Short suggested fix",
                         "title": "Suggested Fix",
                     },
                     "rationale": {
-                        "description": "Обоснование решения",
+                        "description": "Justification for the instance",
                         "title": "Rationale",
                         "type": "string",
                     },
@@ -80,23 +69,9 @@ DEFAULT_GROUP_REPORT_SCHEMA = {
             },
             "RetrievalChunk": {
                 "properties": {
-                    "text": {
-                        "description": "Фрагмент документа (≤120 слов)",
-                        "title": "Text",
-                        "type": "string",
-                    },
-                    "line_start": {
-                        "description": "Номер начала фрагмента",
-                        "minimum": 1,
-                        "title": "Line Start",
-                        "type": "integer",
-                    },
-                    "line_end": {
-                        "description": "Номер конца фрагмента",
-                        "minimum": 1,
-                        "title": "Line End",
-                        "type": "integer",
-                    },
+                    "text": {"description": "Retrieved text fragment", "title": "Text", "type": "string"},
+                    "line_start": {"description": "First line in the fragment", "minimum": 1, "title": "Line Start", "type": "integer"},
+                    "line_end": {"description": "Last line in the fragment", "minimum": 1, "title": "Line End", "type": "integer"},
                 },
                 "required": ["text", "line_start", "line_end"],
                 "title": "RetrievalChunk",
@@ -105,26 +80,14 @@ DEFAULT_GROUP_REPORT_SCHEMA = {
             "ThoughtProcess": {
                 "properties": {
                     "retrieval": {
-                        "description": "1–5 ключевых фрагментов",
+                        "description": "1-5 supporting snippets",
                         "items": {"$ref": "#/$defs/RetrievalChunk"},
                         "title": "Retrieval",
                         "type": "array",
                     },
-                    "analysis": {
-                        "description": "Почему это ошибка?",
-                        "title": "Analysis",
-                        "type": "string",
-                    },
-                    "critique": {
-                        "description": "Самокритика рассуждений",
-                        "title": "Critique",
-                        "type": "string",
-                    },
-                    "verification": {
-                        "description": "окончательная проверка и вывод",
-                        "title": "Verification",
-                        "type": "string",
-                    },
+                    "analysis": {"description": "Reasoning", "title": "Analysis", "type": "string"},
+                    "critique": {"description": "Self-critique", "title": "Critique", "type": "string"},
+                    "verification": {"description": "Verification notes", "title": "Verification", "type": "string"},
                 },
                 "required": ["retrieval", "analysis", "critique", "verification"],
                 "title": "ThoughtProcess",
@@ -132,18 +95,14 @@ DEFAULT_GROUP_REPORT_SCHEMA = {
             },
         },
         "properties": {
-            "group_id": {
-                "description": "ID группы (например, G03)",
-                "title": "Group Id",
-                "type": "string",
-            },
+            "group_id": {"description": "Classifier group id", "title": "Group Id", "type": "string"},
             "preliminary_notes": {
-                "description": "Краткий обзор документа в контексте группы (≤120 слов)",
+                "description": "Short notes about the group (≤120 chars)",
                 "title": "Preliminary Notes",
                 "type": "string",
             },
             "errors": {
-                "description": "Анализ по каждой ошибке группы",
+                "description": "List of analysed errors",
                 "items": {"$ref": "#/$defs/ErrorAnalysisStructured"},
                 "title": "Errors",
                 "type": "array",
@@ -151,7 +110,7 @@ DEFAULT_GROUP_REPORT_SCHEMA = {
             "overall_critique": {
                 "anyOf": [{"type": "string"}, {"type": "null"}],
                 "default": None,
-                "description": "Общее заключение / рекомендации",
+                "description": "Optional overall critique",
                 "title": "Overall Critique",
             },
         },
