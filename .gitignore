@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 *.so
 *.egg-info/
+create_description/
 
 # ——— Virtual env / Poetry / Pipenv ———
 env/

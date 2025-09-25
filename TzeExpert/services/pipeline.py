@@ -8,6 +8,7 @@ from typing import Optional
 
 from TzeExpert.core.settings import settings
 from TzeExpert.schemas import JobRequest, JobResponse
+from TzeExpert.services.report_docx import write_final_report_docx
 from TzeExpert.services.clients import (
     LLMRequesterClient,
     PromptBuilderClient,
@@ -76,6 +77,13 @@ class TzeExpertService:
                 schema=step2_prompt.schema_,
             )
             logger.info("job %s: step2 - LLM response received", run_id)
+
+            # Generate DOCX report as a side effect (do not change API)
+            try:
+                out_path = write_final_report_docx(final_report, run_id=run_id, ggid=job.ggid)
+                logger.info("job %s: DOCX report saved to %s", run_id, out_path)
+            except Exception:
+                logger.exception("job %s: failed to generate DOCX report", run_id)
 
             logger.info(
                 "job %s: pipeline finished successfully (step1_groups=%d)",

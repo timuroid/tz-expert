@@ -17,6 +17,6 @@
 Верните **один** JSON по схеме **GroupResult** (alias Step1GroupResult):
 - перечислите все error_id из группы (даже если нарушений нет);
 - для каждого шага укажите goal и observed;
-- заполните critique, erdict, instances согласно инструкциям System-подсказки.
+- заполните critique, verdict, instances согласно инструкциям System-подсказки.
 
 Никакого лишнего текста вне JSON.
