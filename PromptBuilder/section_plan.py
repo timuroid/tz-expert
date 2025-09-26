@@ -6,47 +6,37 @@ from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
 
-
 class ProposedNewSection(BaseModel):
-    name: str = Field(..., description="Название синтетической секции (Part)")
+    name: str = Field(..., description="Synthetic section name (Part)")
     suggested_position: Literal["top", "before", "after", "bottom"] = Field(
-        ..., description="Куда логично ставить"
+        ..., description="Where to place it logically"
     )
     position_ref: Optional[str] = Field(
-        None, description="Опорная секция для before/after (если применимо)"
+        None, description="Reference section name for before/after (if applicable)"
     )
-    reason: str = Field(..., description="Короткое обоснование размещения")
+    reason: str = Field(..., description="Short rationale for placement")
+
 
 class DuplicateDecision(BaseModel):
-    kept_id: str = Field(..., description="Инстанс, который остаётся")
-    dropped_ids: List[str] = Field(..., description="Инстансы, убранные как дубли")
-    reason: str = Field(..., description="Почему оставили kept_id (специфичность, приоритет, строки и т.п.)")
+    kept_id: str = Field(..., description="Instance ID kept")
+    dropped_ids: List[str] = Field(..., description="Instance IDs dropped as duplicates")
+    reason: str = Field(..., description="Why kept_id was kept (specificity, priority, lines, etc.)")
+
 
 class SectionRow(BaseModel):
-    part: str = Field(..., description="Каноническое имя секции (реальное или синтетическое)")
-    exists_in_doc: bool = Field(..., description="Есть ли такая секция в исходном документе")
-    initial_instance_ids: List[str] = Field(
-        ..., description="Полный список инстансов до дедупликации"
-    )
-    duplicate_decisions: List[DuplicateDecision] = Field(
-        default_factory=list, description="Принятые решения по дублям (может быть пусто)"
-    )
-    final_instance_ids: List[str] = Field(
-        ..., description="Окончательный список инстансов в секции после дедупликации"
-    )
+    part: str = Field(..., description="Canonical section name (real or synthetic)")
+    exists_in_doc: bool = Field(..., description="Whether the section exists in the source document")
+    initial_instance_ids: List[str] = Field(..., description="All instance IDs before deduplication")
+    duplicate_decisions: List[DuplicateDecision] = Field(default_factory=list, description="Decisions taken on duplicates")
+    final_instance_ids: List[str] = Field(..., description="Final instance IDs after deduplication")
+
 
 class SectionPlanOutput(BaseModel):
-    doc_title: str = Field(..., description="Название документа")
-    proposed_new_sections: List[ProposedNewSection] = Field(
-        default_factory=list, description="Какие новые секции добавлены и почему"
-    )
-    sections: List[SectionRow] = Field(
-        ..., description="Секции в том порядке, как их надо выводить в отчёте"
-    )
-    unplaced_instances: List[str] = Field(
-        default_factory=list, description="Инстансы, которые не удалось привязать к секциям"
-    )
-    notes: Optional[str] = Field(
-        None, description="Короткие комментарии по позиционированию/покрытию"
-    )
+    doc_title: str = Field(..., description="Document title")
+    proposed_new_sections: List[ProposedNewSection] = Field(..., description="New sections proposed and why")
+    sections: List[SectionRow] = Field(..., description="Sections in required output order", min_length=1)
+    unplaced_instances: List[str] = Field(..., description="Instances that couldn't be placed")
+    notes: str = Field(None, description="Short notes on placement/coverage")
+
+    model_config = ConfigDict(extra="forbid")
 

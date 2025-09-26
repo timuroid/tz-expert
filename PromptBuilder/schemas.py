@@ -140,7 +140,40 @@ class Step2BuildResponse(BaseModel):
 
 
 def step1_output_schema() -> Dict[str, Any]:
-    return {"name": "Step1GroupResult", "schema": GroupResult.model_json_schema()}
+    schema = GroupResult.model_json_schema()
+    # Ensure top-level required keys include 'errors'
+    try:
+        props = schema.get("properties", {})
+        required = list(schema.get("required", []))
+        for k in ("group_id", "group_title", "errors"):
+            if k in props and k not in required:
+                required.append(k)
+        if required:
+            schema["required"] = required
+        # Dive into $defs to strengthen nested requirements
+        defs = schema.get("$defs") or schema.get("definitions") or {}
+        ec = defs.get("ErrorCheck")
+        if isinstance(ec, dict):
+            ec_props = ec.get("properties", {})
+            ec_req = list(ec.get("required", []))
+            for k in ("error_id", "title", "analysis_steps", "critique", "verdict", "instances"):
+                if k in ec_props and k not in ec_req:
+                    ec_req.append(k)
+            if ec_req:
+                ec["required"] = ec_req
+        inst = defs.get("Instance")
+        if isinstance(inst, dict):
+            i_props = inst.get("properties", {})
+            i_req = list(inst.get("required", []))
+            for k in ("id", "kind", "what_is_incorrect", "lines", "quotes", "fix", "sections", "risks", "priority"):
+                if k in i_props and k not in i_req:
+                    i_req.append(k)
+            if i_req:
+                inst["required"] = i_req
+    except Exception:
+        # if schema structure changes, fail open
+        pass
+    return {"name": "Step1GroupResult", "schema": schema}
 
 
 def step2_output_schema() -> Dict[str, Any]:

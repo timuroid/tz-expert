@@ -1,0 +1,564 @@
+{
+  "status": 200,
+  "url": "http://localhost:8020/v1/structured/run",
+  "result": {
+    "result": {
+      "doc_title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ на конструирование, изготовление и поставку шаровой мельницы для АО «Уральская Сталь»",
+      "proposed_new_sections": [
+        {
+          "name": "Предмет закупки",
+          "suggested_position": "before",
+          "position_ref": "6 Требования к составу поставок и услуг",
+          "reason": "IDs: E03-1"
+        },
+        {
+          "name": "8 Условия выполнения работ и оказания услуг",
+          "suggested_position": "before",
+          "position_ref": "9 Требования к условиям поставки",
+          "reason": "IDs: E08-1"
+        },
+        {
+          "name": "Классификация требований",
+          "suggested_position": "top",
+          "position_ref": null,
+          "reason": "IDs: E09-1"
+        },
+        {
+          "name": "Приложения",
+          "suggested_position": "bottom",
+          "position_ref": null,
+          "reason": "IDs: E14-1"
+        },
+        {
+          "name": "Требования к поставщику",
+          "suggested_position": "before",
+          "position_ref": "9 Требования к условиям поставки",
+          "reason": "IDs: E23-1, E24-1, E25-1"
+        },
+        {
+          "name": "Общие положения",
+          "suggested_position": "after",
+          "position_ref": "Общие сведения",
+          "reason": "IDs: E16-1"
+        }
+      ],
+      "sections": [
+        {
+          "part": "Классификация требований",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E09-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E09-1"
+          ]
+        },
+        {
+          "part": "Общие сведения",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "Общие положения",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E16-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E16-1"
+          ]
+        },
+        {
+          "part": "Назначение оборудования",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01C-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01C-1"
+          ]
+        },
+        {
+          "part": "2 Условия эксплуатации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E07-1",
+            "E07-2",
+            "E07-3",
+            "E07-4",
+            "E14-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E07-1",
+            "E07-2",
+            "E07-3",
+            "E07-4",
+            "E14-2"
+          ]
+        },
+        {
+          "part": "3 Параметры существующих энергоносителей:",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-3"
+          ]
+        },
+        {
+          "part": "4 Характеристика исходного материала для помола",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01B-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01B-3"
+          ]
+        },
+        {
+          "part": "5 Требования к оборудованию",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-4",
+            "E01C-2",
+            "E11-1",
+            "E11-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-4",
+            "E01C-2",
+            "E11-1",
+            "E11-2"
+          ]
+        },
+        {
+          "part": "5.1 Функциональные требования",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.2 Требования к надежности",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.3 Гарантийные требования",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01B-4",
+            "E01C-3",
+            "E13-3",
+            "E17-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01B-4",
+            "E01C-3",
+            "E13-3",
+            "E17-3"
+          ]
+        },
+        {
+          "part": "5.4 Требования по экологии",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.5 Требования к энергоэффективности",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E11-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E11-3"
+          ]
+        },
+        {
+          "part": "5.6 Требования в области охраны труда, промышленной и пожарной безопасности",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7 Требования к АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.1 Функции АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.2 Состав оборудования АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-5"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-5"
+          ]
+        },
+        {
+          "part": "5.7.3 Надежность АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.4 Требования к программному обеспечению",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.5 Требования к системам связи и к организации доступа к корпоративной сети передачи данных предприятия.",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-2",
+            "E01B-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-2",
+            "E01B-2"
+          ]
+        },
+        {
+          "part": "5.7.6 Требования к обеспечению информационной безопасности в АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01B-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01B-1"
+          ]
+        },
+        {
+          "part": "5.7.6.1 Требования к техническим мерам защиты информации в АСУ ТП",
+          "exists_in_doc": false,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.2 Идентификация и аутентификация (ИАФ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.3 Управление доступом (УПД)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.4 Ограничение программной среды (ОПС)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.5 Защита машинных носителей информации (ЗНИ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.6 Аудит безопасности (АУД)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.7 Антивирусная защита (АВЗ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E10-2",
+            "E12-1",
+            "E15-1"
+          ],
+          "duplicate_decisions": [
+            {
+              "kept_id": "E15-1",
+              "dropped_ids": [
+                "E10-2",
+                "E12-1"
+              ],
+              "reason": "semantic duplicate"
+            }
+          ],
+          "final_instance_ids": [
+            "E15-1"
+          ]
+        },
+        {
+          "part": "5.7.6.8 Предотвращение вторжений (компьютерных атак) (СОВ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.9 Обеспечение целостности (ОЦЛ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.10 Обеспечение доступности (ОДТ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-4",
+            "E00-5",
+            "E00-6"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-4",
+            "E00-5",
+            "E00-6"
+          ]
+        },
+        {
+          "part": "5.7.6.11 Защита технических средств и систем (ЗТС)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.12 Защита информационной (автоматизированной) системы и её компонентов (ЗИС)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E15-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E15-2"
+          ]
+        },
+        {
+          "part": "5.7.6.13 Реагирования на компьютерные инциденты (ИНЦ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "УПРАВЛЕНИЕ КОНФИГУРАЦИЕЙ (УКФ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.6.14 Управление обновлениями програмного обеспечения",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E12-2",
+            "E15-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E12-2",
+            "E15-3"
+          ]
+        },
+        {
+          "part": "5.7.6.15 Обеспечение действий в нештатных ситуациях (ДНС)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E10-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E10-1"
+          ]
+        },
+        {
+          "part": "6 Требования к составу поставок и услуг",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-1",
+            "E04-1",
+            "E05-1",
+            "E06-1",
+            "E17-1",
+            "E17-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-1",
+            "E04-1",
+            "E05-1",
+            "E06-1",
+            "E17-1",
+            "E17-2"
+          ]
+        },
+        {
+          "part": "7 Требования к поставляемой технической документации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-3"
+          ]
+        },
+        {
+          "part": "7.1 Требования к разработке технической документации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-2"
+          ]
+        },
+        {
+          "part": "7.2 Требования к составу технической документации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "8 Требования к технико-коммерческому предложению",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E13-2",
+            "E18-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E13-2",
+            "E18-1"
+          ]
+        },
+        {
+          "part": "8 Условия выполнения работ и оказания услуг",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E08-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E08-1"
+          ]
+        },
+        {
+          "part": "9 Требования к условиям поставки",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E13-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E13-1"
+          ]
+        },
+        {
+          "part": "Предмет закупки",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E03-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E03-1"
+          ]
+        },
+        {
+          "part": "Требования к поставщику",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E23-1",
+            "E24-1",
+            "E25-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E23-1",
+            "E24-1",
+            "E25-1"
+          ]
+        },
+        {
+          "part": "Приложения",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E14-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E14-1"
+          ]
+        },
+        {
+          "part": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E02-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E02-1"
+          ]
+        }
+      ],
+      "unplaced_instances": [],
+      "notes": ""
+    },
+    "usage": {
+      "prompt_tokens": 36577,
+      "completion_tokens": 3991,
+      "total_tokens": 40568
+    },
+    "cost": {
+      "currency": "RUB",
+      "model_label": "qwen3-235b",
+      "mode": "sync",
+      "price_per_1m": 500.0,
+      "total_rub": 20.284
+    },
+    "model_uri": "gpt://b1g52qmqktt7evffsd5c/qwen3-235b-a22b-fp8/latest",
+    "attempts": 1
+  }
+}

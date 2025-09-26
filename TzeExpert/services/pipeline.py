@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 from uuid import uuid4
-from typing import Optional
+from typing import Optional, Any, Dict, List
 
 from TzeExpert.core.settings import settings
 from TzeExpert.schemas import JobRequest, JobResponse
@@ -63,18 +63,41 @@ class TzeExpertService:
 
             # Шаг 2
             logger.info("job %s: step2 - requesting prompt from PromptBuilder", run_id)
+            # Prepare minimized Step1 results: only instances (business logic on TzeExpert)
+            def _instances_only(step1_json_text: str) -> str:
+                try:
+                    data = json.loads(step1_json_text)
+                    instances: List[Dict[str, Any]] = []
+                    if isinstance(data, list):
+                        for grp in data:
+                            errs = grp.get("errors") if isinstance(grp, dict) else None
+                            if isinstance(errs, list):
+                                for err in errs:
+                                    insts = err.get("instances") if isinstance(err, dict) else None
+                                    if isinstance(insts, list):
+                                        for inst in insts:
+                                            if isinstance(inst, dict):
+                                                instances.append(inst)
+                    return json.dumps(instances, ensure_ascii=False, indent=2)
+                except Exception:
+                    return "[]"
+
+            instances_json_for_log = _instances_only(step1_json)
+            # Request step2 prompt with minimized instances block
             step2_prompt = await self._prompt_builder.build_step2(
                 markdown=job.markdown,
-                step1_results_json=step1_json,
+                step1_results_json=instances_json_for_log,
             )
             logger.info(
                 "job %s: step2 - invoking LLM for final report", run_id
             )
+
             section_plan = await run_step2_llm(
                 llm_client=self._llm_client,
                 messages=step2_prompt.prompt.messages,
                 model=settings.LLM_MODEL,
                 schema=step2_prompt.schema_,
+                instances_json_log=instances_json_for_log,
             )
             logger.info("job %s: step2 - LLM response (plan) received", run_id)
 

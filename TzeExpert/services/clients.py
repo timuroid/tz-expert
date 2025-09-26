@@ -116,6 +116,7 @@ class LLMRequesterClient:
         *,
         model: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
+        extra_logs: Optional[Dict[str, Any]] = None,
     ) -> RunResponse:
         payload = RunRequest(messages=messages, model=model, schema=schema).model_dump(by_alias=True)
         url = build_llm_endpoint("/run")
@@ -138,6 +139,18 @@ class LLMRequesterClient:
             )
         except Exception:
             logger.debug("LLMRequesterClient: failed to persist request to %s", req_path)
+
+        # Optionally persist additional artifacts alongside the request/response
+        if extra_logs:
+            for key, value in extra_logs.items():
+                try:
+                    extra_path = day_dir / f"{stamp}_{key}.json"
+                    if isinstance(value, str):
+                        extra_path.write_text(value, encoding="utf-8")
+                    else:
+                        extra_path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+                except Exception:
+                    logger.debug("LLMRequesterClient: failed to persist extra log '%s'", key)
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(url, json=payload)
@@ -205,6 +218,14 @@ async def run_step1_llm(
     model: Optional[str],
     schema: Dict[str, Any],
 ) -> List[Step1Run]:
+    # Log outbound requests per group
+    for item in items:
+        logger.info(
+            "step1: sending LLM request for group id=%s code=%s name=%s",
+            item.groupId,
+            item.groupCode,
+            item.groupName,
+        )
     responses = await asyncio.gather(
         *[
             llm_client.run(item.messages, model=model, schema=schema)
@@ -213,6 +234,22 @@ async def run_step1_llm(
     )
     runs: List[Step1Run] = []
     for item, response in zip(items, responses):
+        # Log inbound responses per group
+        try:
+            pt = int(getattr(response.usage, "prompt_tokens", 0))
+            ct = int(getattr(response.usage, "completion_tokens", 0))
+            tt = int(getattr(response.usage, "total_tokens", 0))
+        except Exception:
+            pt = ct = tt = 0
+        logger.info(
+            "step1: received LLM response for group id=%s code=%s (attempts=%s, tokens=%s/%s/%s)",
+            item.groupId,
+            item.groupCode,
+            getattr(response, "attempts", "?"),
+            pt,
+            ct,
+            tt,
+        )
         raw = response.result if isinstance(response.result, str) else json.dumps(response.result, ensure_ascii=False)
         runs.append(_parse_step1_run(raw, item))
     return runs
@@ -224,7 +261,9 @@ async def run_step2_llm(
     messages: List[Dict[str, str]],
     model: Optional[str],
     schema: Dict[str, Any],
+    instances_json_log: Optional[str] = None,
 ) -> SectionPlanOutput:
-    resp = await llm_client.run(messages, model=model, schema=schema)
+    extra = {"step2_instances": instances_json_log} if instances_json_log is not None else None
+    resp = await llm_client.run(messages, model=model, schema=schema, extra_logs=extra)
     raw = resp.result if isinstance(resp.result, str) else json.dumps(resp.result, ensure_ascii=False)
     return _parse_step2(raw)

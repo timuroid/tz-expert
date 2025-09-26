@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-"""Pydantic schemas for the two-step TzeExpert pipeline.
+"""Pydantic schemas for TzeExpert pipeline (Step 1 and Step 2).
 
-This version makes step-2 schema stricter and removes some fields
-from SectionIssue/SectionReport as requested:
-  - removed in step 2: rule_title, quotes, errors_mentioned, summary
-  - forbid unknown fields (additionalProperties=false) on step-2 models
+Important change: analysis_lines has been removed from Step 1 models.
+Prompts will be updated separately.
 """
 from __future__ import annotations
 
@@ -24,64 +21,40 @@ Priority = Literal["low", "medium", "high"]
 
 
 class Step(BaseModel):
-    """Отдельный шаг анализа для конкретного кода ошибки."""
-
-    goal: str = Field(..., description="Что проверяется на данном шаге ")
-    observed: str = Field(..., description="Что найдено/проверено на шаге; при необходимости указывайте номера строк")
+    goal: str = Field(..., description="What is being checked")
+    observed: str = Field(..., description="What was observed/verified")
 
 
 class Verdict(BaseModel):
-    """Итоговый вывод по ошибке."""
-
-    text_verdict: str = Field(..., description="Краткий вердик на основе анализа и критики (1–2 предложения)")
-    status: Literal["ErrorPresence", "NoError"] = Field(..., description="Наличие ошибки")
+    text_verdict: str = Field(..., description="Short engineering conclusion (1–2 sentences)")
+    status: Literal["ErrorPresence", "NoError"] = Field(..., description="Final status for the error")
 
 
 class Instance(BaseModel):
-    """Конкретное проявление ошибки (один паттерн)."""
-
-    id: str = Field(..., description="Короткий идентификатор '<ERRORID>-<NN>', напр. 'E11-1'")
-    kind: Literal["Invalid", "Missing"] = Field(..., description="Invalid — элемент есть, но несостоятелен; Missing — обязательный элемент отсутствует")
-    what_is_incorrect: str = Field(
-        ..., description="Что именно некорректно в данном инстансе (кратко и прикладно)"
-    )
-    lines: List[int] = Field(
-        default_factory=list,
-        description="Номера строк. Либо все > 0, либо ровно [0] для проблем уровня документа",
-    )
-    quotes: List[Optional[str]] = Field(
-        default_factory=list,
-        description="Цитаты, соответствующие `lines` 1:1; для [0] используйте [None]",
-    )
-    fix: str = Field(
-        ..., description="Краткое предложение по исправлению, включая целевой раздел (при необходимости)"
-    )
-    sections: List[str] = Field(
-        default_factory=list,
-        description=(
-            "Названия целевых разделов, где нужно внести правки; предпочтительно минимальный набор; перечисляйте несколько только если изменения реально требуются в нескольких разделах"
-        ),
-    )
-    risks: str = Field(..., description="Последствия, если не исправить")
-    priority: Priority = Field(..., description="Приоритет: low | medium | high")
+    id: str = Field(..., description="Canonical instance id '<ERRORID>-<NN>' (e.g. 'E11-1')")
+    kind: Literal["Invalid", "Missing"] = Field(..., description="Invalid or Missing")
+    what_is_incorrect: str = Field(..., description="What exactly is incorrect")
+    lines: List[int] = Field(default_factory=list, description="Line numbers >0 or [0] for document-wide")
+    quotes: List[Optional[str]] = Field(default_factory=list, description="1:1 with lines; for [0] use [null]")
+    fix: str = Field(..., description="Concrete fix instruction")
+    sections: List[str] = Field(default_factory=list, description="Target section(s) for the fix")
+    risks: str = Field(..., description="Consequences if not fixed")
+    priority: Priority = Field(..., description="low | medium | high")
 
 
 class ErrorCheck(BaseModel):
-    """Результат проверки одного кода ошибки внутри группы."""
-    error_id: str = Field(..., description="Код ошибки (напр., E11)")
-    title: str = Field(..., description="Короткое человеко-понятное название ошибки")
-    analysis_steps: List[Step] = Field(default_factory=list, description="Трассировка выполненных проверок")
-    analysis_lines: List[str] = Field(default_factory=list, description="Поддерживающие номера строк (>0)")
-    critique: str = Field(..., description="Самокритика / ограничения / оговорки")
-    verdict: Verdict = Field(..., description="Итоговое решение по ошибке")
-    instances: List[Instance] = Field(default_factory=list, description="Найденные инстансы ошибки")
+    error_id: str = Field(..., description="Error code (e.g., E11)")
+    title: str = Field(..., description="Verbatim rule title from input")
+    analysis_steps: List[Step] = Field(default_factory=list, description="Trace of reasoning/verification steps")
+    critique: str = Field(..., description="Counter-arguments / caveats")
+    verdict: Verdict = Field(..., description="Final verdict")
+    instances: List[Instance] = Field(default_factory=list, description="Detected instances")
 
 
 class GroupResult(BaseModel):
-    """Результат по группе ошибок (шаг 1)."""
-    group_id: int = Field(..., description="Идентификатор группы ошибок")
-    group_title: str = Field(..., description="Название группы ошибок")
-    errors: List[ErrorCheck] = Field(default_factory=list, description="Проверки по ошибкам в группе")
+    group_id: int = Field(..., description="Classifier group id (1..10)")
+    group_title: str = Field(..., description="Group title")
+    errors: List[ErrorCheck] = Field(default_factory=list, description="Errors in the group")
 
 
 # Alias for backward compatibility with prompts/LLM schema name
@@ -94,41 +67,32 @@ Step1GroupResult = GroupResult
 
 
 class SectionIssue(BaseModel):
-    """Проблема в конкретном разделе или на уровне документа (строго; без лишних полей)."""
-    error_code: str = Field(..., description="Код ошибки, встречающийся в этом контексте (напр., 'E11')")
-    instance_ids: List[str] = Field(default_factory=list, description="Идентификаторы инстансов с Шага 1")
-    what_is_incorrect: str = Field(..., description="где и в чем заключается ошибка")
-    how_to_fix: str = Field(..., description="Как исправить")
-    risk_if_not_fixed: str = Field(..., description="Риски/последствия, если не исправить")
-    priority: Priority = Field(..., description="Приоритет: low | medium | high")
+    error_code: str = Field(..., description="Error code (e.g., 'E11')")
+    instance_ids: List[str] = Field(default_factory=list, description="Related instance ids from step 1")
+    what_is_incorrect: str = Field(..., description="What is incorrect in this section for the code")
+    how_to_fix: str = Field(..., description="How to fix in this section")
+    risk_if_not_fixed: str = Field(..., description="Risk/impact if not fixed")
+    priority: Priority = Field(..., description="low | medium | high")
 
-    # запрет неизвестных полей
     model_config = ConfigDict(extra="forbid")
 
 
 class SectionReport(BaseModel):
-    """Сводный отчёт по разделу (строго; без лишних полей)."""
-    part: str = Field(..., description="Название раздела")
-    errors_present: List[str] = Field(default_factory=list, description="Идентификаторы инстансов, присутствующих в разделе")
-    issues: List[SectionIssue] = Field(default_factory=list, description="Детализированные проблемы раздела")
+    part: str = Field(..., description="Section name")
+    errors_present: List[str] = Field(default_factory=list, description="Error codes present in the section")
+    issues: List[SectionIssue] = Field(default_factory=list, description="Issues for this section")
 
-    # запрет неизвестных полей
     model_config = ConfigDict(extra="forbid")
 
 
 class FinalReportBySections(BaseModel):
-    """Итоговый отчёт по разделам (шаг 2, строгая схема)."""
-    doc_title: str = Field(..., description="Название документа")
-    document_wide: List[SectionIssue] = Field(
-        ..., description="Проблемы уровня документа (не привязаны к конкретному разделу)"
-    )
-    by_sections: List[SectionReport] = Field(
-        ..., description="Сводные отчёты по разделам с описанием проблем"
-    )
+    doc_title: str = Field(..., description="Document title")
+    document_wide: List[SectionIssue] = Field(..., description="Document-wide issues")
+    by_sections: List[SectionReport] = Field(..., description="Per-section reports")
 
-    # запрет неизвестных полей
     model_config = ConfigDict(extra="forbid")
 
 
 # Alias for backward compatibility
 Step2FinalReport = FinalReportBySections
+

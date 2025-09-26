@@ -4,7 +4,7 @@
 {DOCUMENT}
 </DOCUMENT>
 
-## Результаты Шага 1 (массив GroupResult)
+## Результаты Шага 1 
 
 {STEP1_GROUP_RESULTS_JSON_ARRAY}
 

@@ -93,8 +93,8 @@ def write_section_plan_docx(
     title_par.style = doc.styles["Title"]
     title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Proposed new sections (optional)
-    if plan.proposed_new_sections:
+    # Proposed new sections (optional) — disabled in header per new format
+    if False and plan.proposed_new_sections:
         doc.add_heading("Предлагаемые новые разделы", level=1)
         for ns in plan.proposed_new_sections:
             p = doc.add_paragraph(style=None)
@@ -106,6 +106,9 @@ def write_section_plan_docx(
 
     # Sections in order
     for row in plan.sections:
+        # Skip sections without any final_instance_ids
+        if not getattr(row, "final_instance_ids", None):
+            continue
         doc.add_heading(row.part, level=1)
         for iid in row.final_instance_ids:
             data = inst_index.get(str(iid))
@@ -151,4 +154,3 @@ def write_section_plan_docx(
 
     doc.save(out_path)
     return out_path
-

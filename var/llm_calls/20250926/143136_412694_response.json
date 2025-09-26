@@ -1,0 +1,321 @@
+{
+  "status": 200,
+  "url": "http://localhost:8020/v1/structured/run",
+  "result": {
+    "result": {
+      "doc_title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ на конструирование, изготовление и поставку шаровой мельницы для АО «Уральская Сталь»",
+      "proposed_new_sections": [
+        {
+          "name": "Предмет поставки",
+          "suggested_position": "after",
+          "position_ref": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ",
+          "reason": "Синтетическая секция, объединяющая все компоненты поставки, которые в ТЗ распределены по разделам. Логично разместить после названия документа для формирования полного представления о предмете закупки."
+        },
+        {
+          "name": "8.12 Условия выполнения работ и оказания услуг",
+          "suggested_position": "after",
+          "position_ref": "8 Требования к технико-коммерческому предложению",
+          "reason": "Синтетическая секция, необходимая для описания условий выполнения услуг (доступ, ресурсы, допуски). Логично включить в раздел 8, после существующих подпунктов."
+        },
+        {
+          "name": "Приложения",
+          "suggested_position": "bottom",
+          "position_ref": "9 Требования к условиям поставки",
+          "reason": "Синтетическая секция для размещения перечня нормативных документов и приложений. Должна находиться в конце документа."
+        },
+        {
+          "name": "Классификация требований",
+          "suggested_position": "after",
+          "position_ref": "Общие сведения",
+          "reason": "Синтетическая секция для определения статуса требований (обязательные/желательные). Логично разместить после общих сведений, до технических разделов."
+        }
+      ],
+      "sections": [
+        {
+          "part": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E02-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E02-1"
+          ]
+        },
+        {
+          "part": "Предмет поставки",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E03-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E03-1"
+          ]
+        },
+        {
+          "part": "Общие сведения",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E09-1",
+            "E10-1"
+          ],
+          "duplicate_decisions": [
+            {
+              "kept_id": "E09-1",
+              "dropped_ids": [
+                "E10-1"
+              ],
+              "reason": "Оба инстанса касаются отсутствия классификации требований. E09-1 более общий и включает необходимость введения раздела, тогда как E10-1 предлагает маркеры. Приоритет — E09-1, так как он предшествует по логике."
+            }
+          ],
+          "final_instance_ids": [
+            "E09-1"
+          ]
+        },
+        {
+          "part": "Классификация требований",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E12-1",
+            "E12-2",
+            "E12-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E12-1",
+            "E12-2",
+            "E12-3"
+          ]
+        },
+        {
+          "part": "2 Условия эксплуатации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-7",
+            "E07-1",
+            "E07-2",
+            "E07-3",
+            "E07-4"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-7",
+            "E07-1",
+            "E07-2",
+            "E07-3",
+            "E07-4"
+          ]
+        },
+        {
+          "part": "3 Параметры существующих энергоносителей:",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E07-4"
+          ],
+          "duplicate_decisions": [
+            {
+              "kept_id": "E07-4",
+              "dropped_ids": [],
+              "reason": "Инстанс уже учтён в секции «2 Условия эксплуатации», дублирования нет."
+            }
+          ],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5 Требования к оборудованию",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E11-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E11-1"
+          ]
+        },
+        {
+          "part": "5.3 Гарантийные требования",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-3",
+            "E06-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-3",
+            "E06-2"
+          ]
+        },
+        {
+          "part": "5.7.6.7 Антивирусная защита (АВЗ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-6",
+            "E15-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-6",
+            "E15-1"
+          ]
+        },
+        {
+          "part": "5.7.6.10 Обеспечение доступности (ОДТ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-2",
+            "E01C-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-2",
+            "E01C-2"
+          ]
+        },
+        {
+          "part": "5.7.6.12 Защита информационной (автоматизированной) системы и её компонентов (ЗИС)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E15-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E15-2"
+          ]
+        },
+        {
+          "part": "6 Требования к составу поставок и услуг",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-1",
+            "E04-1",
+            "E04-2",
+            "E05-1",
+            "E06-1",
+            "E08-1",
+            "E08-2",
+            "E17-1",
+            "E23-1",
+            "E24-1",
+            "E25-1",
+            "E26-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-1",
+            "E04-1",
+            "E04-2",
+            "E05-1",
+            "E06-1",
+            "E08-1",
+            "E08-2",
+            "E17-1",
+            "E23-1",
+            "E24-1",
+            "E25-1",
+            "E26-1"
+          ]
+        },
+        {
+          "part": "7.2 Требования к составу технической документации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-4"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-4"
+          ]
+        },
+        {
+          "part": "7.2.5 Сертификаты и разрешения на поставляемое оборудование",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-3"
+          ]
+        },
+        {
+          "part": "8 Требования к технико-коммерческому предложению",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-2",
+            "E18-1",
+            "E18-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-2",
+            "E18-1",
+            "E18-2"
+          ]
+        },
+        {
+          "part": "8.12 Условия выполнения работ и оказания услуг",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E08-1",
+            "E08-2"
+          ],
+          "duplicate_decisions": [
+            {
+              "kept_id": "E08-1",
+              "dropped_ids": [],
+              "reason": "Инстансы не дублируют друг друга: E08-1 — общие условия, E08-2 — ресурсы. Оба необходимы."
+            }
+          ],
+          "final_instance_ids": [
+            "E08-1",
+            "E08-2"
+          ]
+        },
+        {
+          "part": "9 Требования к условиям поставки",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E13-1",
+            "E13-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E13-1",
+            "E13-2"
+          ]
+        },
+        {
+          "part": "Приложения",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E14-1",
+            "E14-2",
+            "E14-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E14-1",
+            "E14-2",
+            "E14-3"
+          ]
+        }
+      ],
+      "unplaced_instances": []
+    },
+    "usage": {
+      "prompt_tokens": 68381,
+      "completion_tokens": 2432,
+      "total_tokens": 70813
+    },
+    "cost": {
+      "currency": "RUB",
+      "model_label": "qwen3-235b",
+      "mode": "sync",
+      "price_per_1m": 500.0,
+      "total_rub": 35.4065
+    },
+    "model_uri": "gpt://b1g52qmqktt7evffsd5c/qwen3-235b-a22b-fp8/latest",
+    "attempts": 1
+  }
+}

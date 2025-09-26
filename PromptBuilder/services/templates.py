@@ -1,8 +1,10 @@
-﻿"""Template helpers for PromptBuilder."""
+"""Template helpers for PromptBuilder."""
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
+import json
+
 
 PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -25,12 +27,12 @@ def _render_errors_block(rules: Iterable[Dict]) -> str:
 
 
 def build_system_prompt() -> str:
-    """Совместимость со старым интерфейсом (шаг 1 system)."""
+    """Системный промпт для шага 1."""
     return STEP1_SYSTEM
 
 
 def build_user_prompt(markdown: str, group_meta: Dict, rules: List[Dict]) -> Tuple[str, str | None]:
-    """Совместимость со старым интерфейсом (шаг 1 user)."""
+    """Пользовательский промпт для шага 1."""
     return build_step1_user(markdown=markdown, group_meta=group_meta, rules=rules), None
 
 
@@ -51,7 +53,14 @@ def build_step1_prompt(*, markdown: str, group_meta: Dict, rules: Sequence[Dict]
 
 
 def _format_step1_results(step1_results_json: str) -> str:
-    return step1_results_json.strip() or "(нет данных)"
+    """Вернуть подготовленную строку для блока с результатами шага 1.
+
+    Здесь мы больше не парсим/не преобразуем JSON, а просто возвращаем
+    уже подготовленную строку. Сжатие до instances выполняется на уровне
+    сервисного слоя (builder), чтобы не дублировать логику и не рисковать
+    потерей данных из‑за непредвиденного формата.
+    """
+    return (step1_results_json or "").strip() or "[]"
 
 
 def build_step2_prompt(*, markdown: str, step1_results_json: str) -> Tuple[str, str]:

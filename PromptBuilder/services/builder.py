@@ -1,4 +1,4 @@
-﻿"""Service for constructing LLM prompts for the two-step pipeline."""
+"""Service for constructing LLM prompts for the two-step pipeline."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -78,6 +78,7 @@ class PromptBuilderService:
         )
 
     def build_step2_prompt(self, req: Step2BuildRequest) -> Step2BuildResponse:
+        # PromptBuilder не применяет бизнес-логику: вставляем то, что пришло.
         system_msg, user_msg = build_step2_prompt(
             markdown=req.markdown,
             step1_results_json=req.step1_results,

@@ -1,0 +1,22 @@
+{
+  "queued_at": "2025-09-26T16:37:12.486552+00:00",
+  "sem_acquired_at": "2025-09-26T16:39:17.173984+00:00",
+  "sent_at": "2025-09-26T16:39:17.173991+00:00",
+  "received_at": "2025-09-26T16:39:55.060923+00:00",
+  "sem_wait_ms": 124687,
+  "provider_ms": 37886,
+  "attempts_so_far": 1,
+  "fix_try": 0,
+  "prov_try": 0,
+  "model_uri": "gpt://b1g52qmqktt7evffsd5c/qwen3-235b-a22b-fp8/latest",
+  "messages_len": 2,
+  "has_schema": false,
+  "schema_name": null,
+  "provider_id": "chatcmpl-c6ed186a-5c53-4097-b88c-4c5f6cfe886b",
+  "usage": {
+    "prompt_tokens": 99,
+    "completion_tokens": 1604,
+    "total_tokens": 1703
+  },
+  "content_len": 4890
+}

@@ -5,6 +5,8 @@ import asyncio
 import json
 import random
 from pathlib import Path
+import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from openai import AsyncOpenAI, OpenAIError  # type: ignore
@@ -38,10 +40,30 @@ def _mk_uri(model: Optional[str]) -> str:
     return f"gpt://{settings.YC_FOLDER_ID}/{model}"
 
 
-async def _call_openai(payload: Dict[str, Any]):
-    """Thin wrapper around the AsyncOpenAI client with concurrency limiting."""
+async def _call_openai(payload: Dict[str, Any], telemetry: Optional[Dict[str, Any]] = None):
+    """Wrapper around the client with concurrency limiting and optional telemetry."""
+    queued_at = datetime.now(timezone.utc).isoformat()
+    t_sem_start = time.monotonic()
     async with _SEM:
-        return await _client.chat.completions.create(**payload)  # type: ignore[arg-type]
+        t_sem_acq = time.monotonic()
+        sem_acquired_at = datetime.now(timezone.utc).isoformat()
+        sent_at = datetime.now(timezone.utc).isoformat()
+        t_call_start = time.monotonic()
+        resp = await _client.chat.completions.create(**payload)  # type: ignore[arg-type]
+        t_call_end = time.monotonic()
+        received_at = datetime.now(timezone.utc).isoformat()
+    if telemetry is not None:
+        telemetry.update(
+            {
+                "queued_at": queued_at,
+                "sem_acquired_at": sem_acquired_at,
+                "sent_at": sent_at,
+                "received_at": received_at,
+                "sem_wait_ms": int((t_sem_acq - t_sem_start) * 1000),
+                "provider_ms": int((t_call_end - t_call_start) * 1000),
+            }
+        )
+    return resp
 
 
 async def ask_llm(
@@ -62,6 +84,7 @@ async def ask_llm(
             {
                 "model_uri": model_uri,
                 "schema_name": (json_schema.get("name") if isinstance(json_schema, dict) else None),
+                "max_concurrent": settings.MAX_CONCURRENT,
             },
             ensure_ascii=False,
             indent=2,
@@ -83,14 +106,15 @@ async def ask_llm(
 
     fix_messages = list(messages)
     for fix_try in range(max_retry_json + 1):
-        delay = 0.2
+        delay = 0.1
         for prov_try in range(max_retry_provider + 1):
             total_attempts += 1
             payload = dict(base_payload)
             payload["messages"] = fix_messages
 
             try:
-                resp = await _call_openai(payload)
+                _tel: Dict[str, Any] = {}
+                resp = await _call_openai(payload, telemetry=_tel)
             except OpenAIError as e:
                 msg = str(e).lower()
                 transient = any(keyword in msg for keyword in ("429", "rate limit", "timeout", "gateway", "temporar", "unavailable"))
@@ -104,6 +128,35 @@ async def ask_llm(
             usage = resp.usage.model_dump() if hasattr(resp, "usage") else {}
             usage_acc["prompt_tokens"] += int(usage.get("prompt_tokens", 0))
             usage_acc["completion_tokens"] += int(usage.get("completion_tokens", 0))
+
+            # Persist telemetry for this attempt
+            try:
+                telemetry = {
+                    **_tel,
+                    "attempts_so_far": total_attempts,
+                    "fix_try": fix_try,
+                    "prov_try": prov_try,
+                    "model_uri": model_uri,
+                    "messages_len": len(fix_messages),
+                    "has_schema": isinstance(json_schema, dict),
+                    "schema_name": (json_schema.get("name") if isinstance(json_schema, dict) else None),
+                    "provider_id": getattr(resp, "id", None),
+                    "usage": {
+                        "prompt_tokens": int(usage.get("prompt_tokens", 0)),
+                        "completion_tokens": int(usage.get("completion_tokens", 0)),
+                        "total_tokens": int(usage.get("prompt_tokens", 0)) + int(usage.get("completion_tokens", 0)),
+                    },
+                    "content_len": len(content),
+                }
+                (_LOG_DIR / "last_telemetry.json").write_text(
+                    json.dumps(telemetry, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+                (_LOG_DIR / f"telemetry_{stamp}.json").write_text(
+                    json.dumps(telemetry, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+            except Exception:
+                pass
 
             if not isinstance(json_schema, dict):
                 usage_acc["total_tokens"] = usage_acc["prompt_tokens"] + usage_acc["completion_tokens"]
