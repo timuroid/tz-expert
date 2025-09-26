@@ -14,10 +14,8 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
-from PromptBuilder.analysis_schemas import (
-    GroupResult,
-    FinalReportBySections,
-)
+from PromptBuilder.analysis_schemas import GroupResult
+from PromptBuilder.section_plan import SectionPlanOutput
 
 
 class BuildRequest(BaseModel):
@@ -146,4 +144,4 @@ def step1_output_schema() -> Dict[str, Any]:
 
 
 def step2_output_schema() -> Dict[str, Any]:
-    return {"name": "FinalReportBySections", "schema": FinalReportBySections.model_json_schema()}
+    return {"name": "SectionPlanOutput", "schema": SectionPlanOutput.model_json_schema()}

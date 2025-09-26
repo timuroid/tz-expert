@@ -8,7 +8,7 @@ from typing import Optional
 
 from TzeExpert.core.settings import settings
 from TzeExpert.schemas import JobRequest, JobResponse
-from TzeExpert.services.report_docx import write_final_report_docx
+from TzeExpert.services.report_docx import write_section_plan_docx
 from TzeExpert.services.clients import (
     LLMRequesterClient,
     PromptBuilderClient,
@@ -70,17 +70,17 @@ class TzeExpertService:
             logger.info(
                 "job %s: step2 - invoking LLM for final report", run_id
             )
-            final_report = await run_step2_llm(
+            section_plan = await run_step2_llm(
                 llm_client=self._llm_client,
                 messages=step2_prompt.prompt.messages,
                 model=settings.LLM_MODEL,
                 schema=step2_prompt.schema_,
             )
-            logger.info("job %s: step2 - LLM response received", run_id)
+            logger.info("job %s: step2 - LLM response (plan) received", run_id)
 
             # Generate DOCX report as a side effect (do not change API)
             try:
-                out_path = write_final_report_docx(final_report, run_id=run_id, ggid=job.ggid)
+                out_path = write_section_plan_docx(section_plan, step1_runs=step1_runs, run_id=run_id, ggid=job.ggid)
                 logger.info("job %s: DOCX report saved to %s", run_id, out_path)
             except Exception:
                 logger.exception("job %s: failed to generate DOCX report", run_id)
@@ -90,7 +90,7 @@ class TzeExpertService:
                 run_id,
                 len(step1_prompts.items),
             )
-            return JobResponse(step1=step1_runs, step2=final_report)
+            return JobResponse(step1=step1_runs, step2=section_plan)
         except Exception:
             logger.exception("job %s: pipeline failed", run_id)
             raise

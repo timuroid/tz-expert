@@ -21,12 +21,7 @@ from PromptBuilder.schemas import (
 from LLMRequester.schemas import RunRequest, RunResponse
 
 from TzeExpert.core.settings import build_llm_endpoint, build_prompt_builder_endpoint, settings
-from TzeExpert.schemas import (
-    JobRequest,
-    GroupResult,
-    Step1Run,
-    FinalReportBySections,
-)
+from TzeExpert.schemas import JobRequest, GroupResult, Step1Run, SectionPlanOutput
 
 logger = logging.getLogger(__name__)
 
@@ -196,9 +191,9 @@ def _parse_step1_run(raw_text: str, item: BuildItem) -> Step1Run:
     return Step1Run(group_id=item.groupId, raw=raw_text, parsed=parsed)
 
 
-def _parse_step2(raw_text: str) -> FinalReportBySections:
+def _parse_step2(raw_text: str) -> SectionPlanOutput:
     try:
-        return FinalReportBySections.model_validate_json(raw_text)
+        return SectionPlanOutput.model_validate_json(raw_text)
     except ValidationError as exc:
         raise ValueError(f"Failed to parse Step2 JSON: {exc}") from exc
 
@@ -229,7 +224,7 @@ async def run_step2_llm(
     messages: List[Dict[str, str]],
     model: Optional[str],
     schema: Dict[str, Any],
-) -> FinalReportBySections:
+) -> SectionPlanOutput:
     resp = await llm_client.run(messages, model=model, schema=schema)
     raw = resp.result if isinstance(resp.result, str) else json.dumps(resp.result, ensure_ascii=False)
     return _parse_step2(raw)

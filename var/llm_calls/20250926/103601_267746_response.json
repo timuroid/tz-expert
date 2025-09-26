@@ -1,0 +1,317 @@
+{
+  "status": 200,
+  "url": "http://localhost:8020/v1/structured/run",
+  "result": {
+    "result": {
+      "doc_title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ на конструирование, изготовление и поставку шаровой мельницы для АО «Уральская Сталь»",
+      "sections": [
+        {
+          "part": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E02-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E02-1"
+          ]
+        },
+        {
+          "part": "Общие сведения",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E03-1",
+            "E09-1",
+            "E10-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E03-1",
+            "E09-1",
+            "E10-1"
+          ]
+        },
+        {
+          "part": "Назначение оборудования",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "2 Условия эксплуатации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E07-1",
+            "E07-2",
+            "E07-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E07-1",
+            "E07-2",
+            "E07-3"
+          ]
+        },
+        {
+          "part": "3 Параметры существующих энергоносителей:",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-1"
+          ]
+        },
+        {
+          "part": "4 Характеристика исходного материала для помола",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E20-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E20-1"
+          ]
+        },
+        {
+          "part": "5 Требования к оборудованию",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01C-1",
+            "E01C-2",
+            "E01C-3",
+            "E05-2",
+            "E11-1",
+            "E12-1",
+            "E16-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01C-1",
+            "E01C-2",
+            "E01C-3",
+            "E05-2",
+            "E11-1",
+            "E12-1",
+            "E16-2"
+          ]
+        },
+        {
+          "part": "5.1 Функциональные требования",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.2 Требования к надежности",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.3 Гарантийные требования",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E21-1",
+            "E22-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E21-1",
+            "E22-1"
+          ]
+        },
+        {
+          "part": "5.7 Требования к АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "5.7.1 Функции АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01B-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01B-1"
+          ]
+        },
+        {
+          "part": "5.7.5 Требования к системам связи и к организации доступа к корпоративной сети передачи данных предприятия.",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-3",
+            "E01A-4",
+            "E01A-5",
+            "E01B-2",
+            "E12-2",
+            "E12-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-3",
+            "E01A-4",
+            "E01A-5",
+            "E01B-2",
+            "E12-2",
+            "E12-3"
+          ]
+        },
+        {
+          "part": "5.7.6.1 Требования к техническим мерам защиты информации в АСУ ТП",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01B-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01B-3"
+          ]
+        },
+        {
+          "part": "5.7.6.10 Обеспечение доступности (ОДТ)",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E00-1",
+            "E00-3",
+            "E00-4",
+            "E00-5"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E00-1",
+            "E00-3",
+            "E00-4",
+            "E00-5"
+          ]
+        },
+        {
+          "part": "6 Требования к составу поставок и услуг",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E01A-2",
+            "E04-1",
+            "E04-2",
+            "E04-3",
+            "E05-1",
+            "E06-1",
+            "E06-2",
+            "E08-1",
+            "E08-2",
+            "E08-3",
+            "E23-1",
+            "E26-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E01A-2",
+            "E04-1",
+            "E04-2",
+            "E04-3",
+            "E05-1",
+            "E06-1",
+            "E06-2",
+            "E08-1",
+            "E08-2",
+            "E08-3",
+            "E23-1",
+            "E26-1"
+          ]
+        },
+        {
+          "part": "7 Требования к поставляемой технической документации",
+          "exists_in_doc": true,
+          "initial_instance_ids": [],
+          "duplicate_decisions": [],
+          "final_instance_ids": []
+        },
+        {
+          "part": "8 Требования к технико-коммерческому предложению",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E13-1",
+            "E18-1",
+            "E24-1",
+            "E25-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E13-1",
+            "E18-1",
+            "E24-1",
+            "E25-1"
+          ]
+        },
+        {
+          "part": "9 Требования к условиям поставки",
+          "exists_in_doc": true,
+          "initial_instance_ids": [
+            "E13-2"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E13-2"
+          ]
+        },
+        {
+          "part": "Предмет закупки",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E03-1"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E03-1"
+          ],
+          "proposed_new_section": {
+            "placement": "after",
+            "reference_section": "Общие сведения",
+            "justification": "Секция необходима для централизованного описания предмета закупки, который в текущем документе распределён по разным разделам. Размещение после «Общие сведения» логично, так как это вводная часть документа."
+          }
+        },
+        {
+          "part": "Приложения",
+          "exists_in_doc": false,
+          "initial_instance_ids": [
+            "E14-1",
+            "E14-2",
+            "E14-3"
+          ],
+          "duplicate_decisions": [],
+          "final_instance_ids": [
+            "E14-1",
+            "E14-2",
+            "E14-3"
+          ],
+          "proposed_new_section": {
+            "placement": "bottom",
+            "justification": "Секция необходима для приложения всех ссылок на нормативные документы и техническую документацию на коммерческие продукты. Размещение в конце документа соответствует стандартной структуре технических заданий."
+          }
+        }
+      ],
+      "unplaced_instances": [],
+      "proposed_new_sections_count": 2
+    },
+    "usage": {
+      "prompt_tokens": 71922,
+      "completion_tokens": 2235,
+      "total_tokens": 74157
+    },
+    "cost": {
+      "currency": "RUB",
+      "model_label": "qwen3-235b",
+      "mode": "sync",
+      "price_per_1m": 500.0,
+      "total_rub": 37.0785
+    },
+    "model_uri": "gpt://b1g52qmqktt7evffsd5c/qwen3-235b-a22b-fp8/latest",
+    "attempts": 1
+  }
+}

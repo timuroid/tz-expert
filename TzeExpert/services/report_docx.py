@@ -1,30 +1,26 @@
-"""DOCX report generation for FinalReportBySections.
+"""DOCX report generation for SectionPlanOutput (Step 2 v3).
 
-This module formats the step-2 consolidated report into a compact .docx file.
+Builds a compact .docx report from the SectionPlanOutput and step-1 parsed results.
 
-Structure:
-- Title: report.doc_title (Document Title style)
-- Sections with issues:
+Formatting:
+- Title: plan.doc_title (Title style)
+- Optional: Proposed New Sections (bullet list)
+- Sections (in plan order):
   - Heading 1: section.part
-  - For each issue: a single-column table (4 rows) spanning page width:
-      1) Код ошибки: <error_code>  [error code rendered with smaller font]
-      2) Что некорректно: <what_is_incorrect>
-      3) Как исправить: <how_to_fix>
-      4) Риски, если не исправить: <risk_if_not_fixed>
-- Document-wide issues LAST:
-  - Heading 1: "Document Wide"
-  - Same compact table per issue
-
-Files are written under var/reports/YYYYMMDD/<timestamp>_<runid>_<ggid?>.docx
+  - For each instance id in final_instance_ids:
+    - Line 1: "Что некорректно: " + text (comment attached with "(ID) risk" if risk present)
+    - Line 2: "Как исправить: " + fix
+    - Compact spacing between lines and items
 """
 from __future__ import annotations
 
 from pathlib import Path
 from datetime import datetime
 import re
-from typing import Optional
+from typing import Optional, Dict, List
 
-from PromptBuilder.analysis_schemas import FinalReportBySections
+from PromptBuilder.section_plan import SectionPlanOutput, SectionRow
+from TzeExpert.schemas import Step1Run
 
 
 _REPORTS_DIR = Path(__file__).resolve().parents[2] / "var" / "reports"
@@ -32,27 +28,38 @@ _REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _sanitize_filename(text: str) -> str:
-    """Make a safe filename from arbitrary text for Windows/Unix."""
     text = re.sub(r"[\r\n\t]+", " ", text)
-    # Replace forbidden characters and collapse spaces
-    text = re.sub(r"[<>:\\/\|\?\*\"]+", " ", text)
+    text = re.sub(r"[<>:\\\\/\|\?\*\"]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text or "report"
 
 
-def write_final_report_docx(
-    report: FinalReportBySections,
+def _build_instance_index(step1_runs: List[Step1Run]) -> Dict[str, Dict[str, str]]:
+    idx: Dict[str, Dict[str, str]] = {}
+    for run in step1_runs:
+        for err in run.parsed.errors:
+            for inst in err.instances:
+                # normalize to strings
+                idx[str(inst.id)] = {
+                    "what": str(getattr(inst, "what_is_incorrect", "")),
+                    "fix": str(getattr(inst, "fix", "")),
+                    "risks": str(getattr(inst, "risks", "")),
+                }
+    return idx
+
+
+def write_section_plan_docx(
+    plan: SectionPlanOutput,
     *,
+    step1_runs: List[Step1Run],
     run_id: str,
     ggid: Optional[int] = None,
 ) -> Path:
-    """Render the provided report to a .docx file and return its path."""
-
     ts = datetime.now()
     day_dir = _REPORTS_DIR / ts.strftime("%Y%m%d")
     day_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_title = _sanitize_filename(report.doc_title)[:80]
+    safe_title = _sanitize_filename(plan.doc_title)[:80]
     stamp = ts.strftime("%H%M%S_%f")
     parts = [stamp, run_id]
     if ggid is not None:
@@ -62,9 +69,9 @@ def write_final_report_docx(
     out_path = day_dir / filename
 
     try:
-        from docx import Document  # type: ignore[import-untyped]
-        from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING  # type: ignore[import-untyped]
-        from docx.shared import Pt  # type: ignore[import-untyped]
+        from docx import Document  # type: ignore
+        from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING  # type: ignore
+        from docx.shared import Pt  # type: ignore
     except Exception as exc:  # pragma: no cover
         raise RuntimeError(
             "python-docx is required to generate DOCX reports. "
@@ -73,13 +80,6 @@ def write_final_report_docx(
 
     doc = Document()
 
-    # Title (large as per the 'Title' style)
-    title_par = doc.add_paragraph()
-    title_par.add_run(report.doc_title)
-    title_par.style = doc.styles["Title"]
-    title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    # Helpers
     def _compact_paragraph(p):
         pf = p.paragraph_format
         pf.space_before = Pt(0)
@@ -87,54 +87,68 @@ def write_final_report_docx(
         pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
         pf.line_spacing = 1.0
 
-    # Render an issue as two compact paragraphs (без строки с кодом ошибки).
-    # Риск добавляется как комментарий Word к тексту 'Что некорректно' с префиксом (CODE).
-    def _render_issue_block(code: str, what: str, how: str, risk: str | None = None) -> None:
-        # Line 1: what is incorrect (attach comment here if risk exists)
-        p1 = doc.add_paragraph()
-        r1_label = p1.add_run("Что некорректно: ")
-        r1_label.bold = True
-        what_run = p1.add_run(what)
-        _compact_paragraph(p1)
-        if risk:
-            try:
-                doc.add_comment(what_run, text=f"({code}) {risk}", author="", initials="")
-            except Exception:
-                pass
+    # Title
+    title_par = doc.add_paragraph()
+    title_par.add_run(plan.doc_title)
+    title_par.style = doc.styles["Title"]
+    title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        # Line 2: how to fix
-        p2 = doc.add_paragraph()
-        r2_label = p2.add_run("Как исправить: ")
-        r2_label.bold = True
-        p2.add_run(how)
-        _compact_paragraph(p2)
+    # Proposed new sections (optional)
+    if plan.proposed_new_sections:
+        doc.add_heading("Предлагаемые новые разделы", level=1)
+        for ns in plan.proposed_new_sections:
+            p = doc.add_paragraph(style=None)
+            p.add_run(f"{ns.name} — {ns.suggested_position}" + (f" {ns.position_ref}" if ns.position_ref else "") + f". {ns.reason}")
+            _compact_paragraph(p)
 
-        # Spacing after each issue
-        _compact_paragraph(doc.add_paragraph())
+    # Build index from step1
+    inst_index = _build_instance_index(step1_runs)
 
-    # Sections first
-    for section in report.by_sections:
-        if not section.issues:
-            continue
-        doc.add_heading(section.part, level=1)
-        for issue in section.issues:
-            _render_issue_block(
-                code=issue.error_code,
-                what=issue.what_is_incorrect,
-                how=issue.how_to_fix,
-                risk=getattr(issue, "risk_if_not_fixed", None),
-            )
+    # Sections in order
+    for row in plan.sections:
+        doc.add_heading(row.part, level=1)
+        for iid in row.final_instance_ids:
+            data = inst_index.get(str(iid))
+            if not data:
+                # mention unplaced/missing quietly
+                p = doc.add_paragraph()
+                p.add_run(f"Не удалось найти инстанс {iid} по результатам шага 1")
+                _compact_paragraph(p)
+                continue
 
-    # Document-wide issues last
-    if report.document_wide:
-        doc.add_heading("Document Wide", level=1)
-        for issue in report.document_wide:
-            _render_issue_block(
-                code=issue.error_code,
-                what=issue.what_is_incorrect,
-                how=issue.how_to_fix,
-                risk=getattr(issue, "risk_if_not_fixed", None),
-            )
+            # Line 1: what (with risk as comment if present)
+            p1 = doc.add_paragraph()
+            r1_label = p1.add_run("Что некорректно: ")
+            r1_label.bold = True
+            what_run = p1.add_run(data.get("what", ""))
+            _compact_paragraph(p1)
+            risk = data.get("risks") or None
+            if risk:
+                try:
+                    # Attach a comment containing (ID) risk
+                    doc.add_comment(what_run, text=f"({iid}) {risk}", author="", initials="")
+                except Exception:
+                    pass
+
+            # Line 2: fix
+            p2 = doc.add_paragraph()
+            r2_label = p2.add_run("Как исправить: ")
+            r2_label.bold = True
+            p2.add_run(data.get("fix", ""))
+            _compact_paragraph(p2)
+
+            # spacer
+            _compact_paragraph(doc.add_paragraph())
+
+    # Notes and unplaced (optional)
+    if plan.unplaced_instances:
+        doc.add_heading("Непривязанные инстансы", level=1)
+        p = doc.add_paragraph(", ".join(plan.unplaced_instances))
+        _compact_paragraph(p)
+    if plan.notes:
+        p = doc.add_paragraph(plan.notes)
+        _compact_paragraph(p)
 
     doc.save(out_path)
     return out_path
+

@@ -1,14 +1,12 @@
-﻿"""DTO для работы TzeExpert."""
+"""DTO для API TzeExpert."""
 from __future__ import annotations
 
-from typing import List, Any, Dict, Optional
+from typing import List
 
 from pydantic import BaseModel
 
-from PromptBuilder.analysis_schemas import (
-    GroupResult,
-    FinalReportBySections,
-)
+from PromptBuilder.analysis_schemas import GroupResult
+from PromptBuilder.section_plan import SectionPlanOutput
 
 
 class JobRequest(BaseModel):
@@ -24,25 +22,5 @@ class Step1Run(BaseModel):
 
 class JobResponse(BaseModel):
     step1: List[Step1Run]
-    step2: FinalReportBySections
+    step2: SectionPlanOutput
 
-
-class ReportFromResponseRequest(BaseModel):
-    """Generate DOCX from a full LLM response JSON.
-
-    Accepts the full JSON object as stored by LLMRequesterClient (with keys like
-    status/url/result/...) or a plain RunResponse-like object (with result/usage/...)
-    or directly the final report object (doc_title, document_wide, by_sections).
-    Optional run_id and ggid can be supplied for filename composition.
-    """
-
-    envelope: Dict[str, Any]
-    run_id: Optional[str] = None
-    ggid: Optional[int] = None
-
-
-class ReportFromResponseResponse(BaseModel):
-    """Response with saved DOCX path and parsed report structure."""
-
-    path: str
-    report: FinalReportBySections

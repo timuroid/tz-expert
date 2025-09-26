@@ -71,7 +71,7 @@ class ErrorCheck(BaseModel):
     error_id: str = Field(..., description="Код ошибки (напр., E11)")
     title: str = Field(..., description="Короткое человеко-понятное название ошибки")
     analysis_steps: List[Step] = Field(default_factory=list, description="Трассировка выполненных проверок")
-    analysis_lines: List[int] = Field(default_factory=list, description="Поддерживающие номера строк (>0)")
+    analysis_lines: List[str] = Field(default_factory=list, description="Поддерживающие номера строк (>0)")
     critique: str = Field(..., description="Самокритика / ограничения / оговорки")
     verdict: Verdict = Field(..., description="Итоговое решение по ошибке")
     instances: List[Instance] = Field(default_factory=list, description="Найденные инстансы ошибки")
