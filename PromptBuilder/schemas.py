@@ -120,6 +120,9 @@ class Step1BuildResponse(BaseModel):
     ggid: int
     items: List[BuildItem]
     schema_: Dict[str, Any] = Field(..., alias="schema")
+    # Additionally return error catalogue for the given ggid
+    # Format: groups -> errors -> { code, name, description, detector }
+    groups: Optional[List["GGGroup"]] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

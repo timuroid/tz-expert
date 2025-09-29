@@ -71,10 +71,14 @@ class PromptBuilderService:
             gg_id=req.ggid,
             limit=req.limit,
         )
+        # Also return full error catalogue for the given ggid (not limited)
+        gg_full = self._repo.get_gg_full(req.ggid)
+        groups = gg_full.get("groups") if gg_full else None
         return Step1BuildResponse(
             ggid=req.ggid,
             items=items,
             schema_=step1_output_schema(),
+            groups=groups,
         )
 
     def build_step2_prompt(self, req: Step2BuildRequest) -> Step2BuildResponse:
