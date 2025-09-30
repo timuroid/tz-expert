@@ -13,11 +13,11 @@
 • В идеале unplaced_instances пуст: распределите все инстансы по секциям.
 
 Порядок секций:
-• Реальные секции — в порядке появления в документе (по заголовкам Markdown).  
-• Синтетические секции включайте в общий список опираясь на suggested_position и position_ref; 
-• Укажите suggested_position: "top" | "before" | "after" | "bottom"; для before/after дайте position_ref (точный реальный заголовок).  
-• В proposed_new_sections.reason перечислите, какие instance_id будут внутри этой синтетической секции и почему (например: "IDs: E14-1, E14-2").
+• Реальные секции — в порядке появления в документе.  
 • Секции относящиеся к названию Технического задания ставь в начало. (например секция: "ТЕХНИЧЕСКОЕ ЗАДАНИЕ", "Заголовок документа" и т.п)
+• Синтетические секции — suggested_position всегда bottom, кроме синтетических секций, которые относятся к названию ТЗ или предмету ТЗ: у них suggested_position = top.
+• before / after не использовать в "suggested_position" вовсе; position_ref всегда null  
+• В proposed_new_sections.reason указывать только список instance_id, реально принадлежащих этой синтетической секции на Шаге 1, в формате: IDs: E14-1, E14-2.
 
 Содержимое секций:
 • Для каждой уникальной секции (по имени из instances.sections[0]) соберите все её инстансы в initial_instance_ids.  
@@ -25,6 +25,11 @@
 • Зафиксируйте группы дублей в duplicate_decisions[{kept_id, dropped_ids[], reason:"semantic duplicate"}].  
 • final_instance_ids = initial_instance_ids минус все dropped_ids (порядок не важен).  
 • В `sections` добавляйте только секции, у которых есть хотя бы один инстанс в initial_instance_ids.
+
+Порядок в sections:
+• реальные секции в порядке появления в документе;
+• затем все синтетические секции с suggested_position=bottom;
+• исключение: синтетические секции, относящиеся к названию или предмету ТЗ, ставьте в самое начало списка sections. ← ДОБАВЛЕНО
 
 unplaced_instances и notes:
 • Стремитесь к пустому unplaced_instances. Добавляйте туда id только если привязка невозможна.  
@@ -36,8 +41,8 @@ unplaced_instances и notes:
   "proposed_new_sections": [
     {
       "name": "<имя синтетической секции из instances.sections[0]>",
-      "suggested_position": "top" | "before" | "after" | "bottom",
-      "position_ref": "<реальная секция или null>",
+      "suggested_position": "top" | "bottom",
+      "position_ref": "<null>",
       "reason": "IDs: <список instance_id через запятую>"
     }
     // одна запись на каждую синтетическую секцию
