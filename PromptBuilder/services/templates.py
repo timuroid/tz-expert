@@ -6,7 +6,12 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 import json
 
 
-PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
+# Prompts directory moved under PromptBuilder/prompts
+# Keep a fallback to old location for backward compatibility
+_PB_ROOT = Path(__file__).resolve().parents[1]
+_NEW_PROMPT_DIR = _PB_ROOT / "prompts"
+_OLD_PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
+PROMPT_DIR = _NEW_PROMPT_DIR if _NEW_PROMPT_DIR.exists() else _OLD_PROMPT_DIR
 
 STEP1_SYSTEM = (PROMPT_DIR / "step1.system.md").read_text(encoding="utf-8").strip()
 STEP1_USER_TEMPLATE = (PROMPT_DIR / "step1_user.tpl.md").read_text(encoding="utf-8")
