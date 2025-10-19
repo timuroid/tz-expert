@@ -5,8 +5,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from PromptBuilder.analysis_schemas import GroupResult
-from PromptBuilder.section_plan import SectionPlanOutput
+from PromptBuilder.schemas import GroupResult, SectionPlanOutput
 
 
 class JobRequest(BaseModel):
@@ -23,4 +22,3 @@ class Step1Run(BaseModel):
 class JobResponse(BaseModel):
     step1: List[Step1Run]
     step2: SectionPlanOutput
-

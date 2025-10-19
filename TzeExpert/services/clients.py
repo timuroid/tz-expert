@@ -4,8 +4,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 import httpx
@@ -25,9 +23,7 @@ from TzeExpert.schemas import JobRequest, GroupResult, Step1Run, SectionPlanOutp
 
 logger = logging.getLogger(__name__)
 
-# Directory to persist all LLMRequester requests/responses
-_LLM_CALLS_DIR = Path(__file__).resolve().parents[2] / "var" / "llm_calls"
-_LLM_CALLS_DIR.mkdir(parents=True, exist_ok=True)
+# Disk logging to var/llm_calls has been removed
 
 
 class PromptBuilderClient:
@@ -127,30 +123,7 @@ class LLMRequesterClient:
             "yes" if schema else "no",
         )
 
-        ts = datetime.now()
-        day_dir = _LLM_CALLS_DIR / ts.strftime("%Y%m%d")
-        day_dir.mkdir(exist_ok=True)
-        stamp = ts.strftime("%H%M%S_%f")
-        req_path = day_dir / f"{stamp}_request.json"
-        try:
-            req_path.write_text(
-                json.dumps({"url": url, "payload": payload}, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except Exception:
-            logger.debug("LLMRequesterClient: failed to persist request to %s", req_path)
-
-        # Optionally persist additional artifacts alongside the request/response
-        if extra_logs:
-            for key, value in extra_logs.items():
-                try:
-                    extra_path = day_dir / f"{stamp}_{key}.json"
-                    if isinstance(value, str):
-                        extra_path.write_text(value, encoding="utf-8")
-                    else:
-                        extra_path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-                except Exception:
-                    logger.debug("LLMRequesterClient: failed to persist extra log '%s'", key)
+        # Disk request/extra logging removed
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(url, json=payload)
@@ -174,22 +147,7 @@ class LLMRequesterClient:
 
         data = resp.json()
 
-        resp_path = day_dir / f"{stamp}_response.json"
-        try:
-            resp_path.write_text(
-                json.dumps(
-                    {
-                        "status": resp.status_code,
-                        "url": str(resp.request.url) if getattr(resp, "request", None) else url,
-                        "result": data,
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
-            )
-        except Exception:
-            logger.debug("LLMRequesterClient: failed to persist response to %s", resp_path)
+        # Disk response logging removed
 
         return RunResponse(**data)
 

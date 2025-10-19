@@ -21,9 +21,14 @@ env/
 
 # ——— Secrets & config ———
 .env
+**/.env
 *.key
 *.pem
 
 # ——— OS / editor junk ———
 .DS_Store
 Thumbs.db
+
+# LLMRequester service env (keep secrets out of VCS)
+LLMRequester/llmrequester.env
+LLMRequester/.env

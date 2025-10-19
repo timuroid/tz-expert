@@ -1,8 +1,15 @@
-#core/settings.py
+﻿"""Конфигурация PromptBuilder через переменные окружения (pydantic-settings).
+
+Читает `.env` в рабочей директории и переменные с префиксом `PB_`.
+"""
+from __future__ import annotations
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
-    # читаем .env, игнорируем лишние ключи, префикс PB_, регистр не важен
+    """Pydantic-класс настроек сервиса."""
+    # Read from .env in the working directory, use PB_* prefix for vars
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -10,7 +17,12 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # ищется переменная PB_DATABASE_URL (или pb_database_url)
+    # Database connection string (PB_DATABASE_URL)
     database_url: str
+
+    # Logging configuration
+    log_level: str = "INFO"   # PB_LOG_LEVEL
+    log_json: bool = False    # PB_LOG_JSON
+
 
 settings = Settings()

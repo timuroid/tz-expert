@@ -1,28 +1,18 @@
-﻿"""Pricing utilities for LLMRequester."""
+﻿"""`nВспомогательные функции расчёта стоимости для LLMRequester.`n`nМодель ценообразования упрощена и задаётся тарифом на 1К токенов для`nкаждого ярлыка модели. Стоимость ответа считается пропорционально общему`nчислу токенов, возвращаемому провайдером.`n"""
 from __future__ import annotations
 
 from typing import Dict
 
-# Price per 1K tokens in RUB for supported models/modes (rough public data)
-PRICING_RUB_PER_1K: Dict[str, Dict[str, float]] = {
-    "sync": {
-        "yandexgpt-lite": 0.20,
-        "yandexgpt": 1.20,
-        "datasphere-finetuned": 1.20,
-        "llama-lite": 0.20,
-        "llama": 1.20,
-        "qwen3-235b": 0.50,
-        "gpt-oss-120b": 0.30,
-        "gpt-oss-20b": 0.10,
-    },
-    "async": {
-        "yandexgpt-lite": 0.10,
-        "yandexgpt": 0.60,
-        "datasphere-finetuned": 0.60,
-        "llama-lite": 0.10,
-        "llama": 0.60,
-        # qwen3-235b and gpt-oss models are not yet exposed in async mode
-    },
+# Price per 1K tokens in RUB per model (rough public data)
+PRICING_RUB_PER_1K: Dict[str, float] = {
+    "yandexgpt-lite": 0.20,
+    "yandexgpt": 1.20,
+    "datasphere-finetuned": 1.20,
+    "llama-lite": 0.20,
+    "llama": 1.20,
+    "qwen3-235b": 0.50,
+    "gpt-oss-120b": 0.30,
+    "gpt-oss-20b": 0.10,
 }
 
 # Known prefixes in model URIs -> pricing labels
@@ -39,7 +29,11 @@ MODEL_PREFIXES = {
 
 
 def normalize_model_label(model_uri: str) -> str:
-    """Map full model URI to a pricing label."""
+    """
+    Преобразовать полный URI модели к ярлыку для прайсинга.
+    Ищет известные префиксы в строке URI и возвращает соответствующий ярлык.
+    Если ничего не найдено — используется дефолтный "yandexgpt"   
+    """
     lower = model_uri.lower()
     for prefix, label in MODEL_PREFIXES.items():
         if prefix in lower:
@@ -48,21 +42,23 @@ def normalize_model_label(model_uri: str) -> str:
     return "yandexgpt"
 
 
-def price_per_1k_rub(model_label: str, mode: str) -> float:
-    table = PRICING_RUB_PER_1K.get(mode, PRICING_RUB_PER_1K["sync"])
-    return float(table.get(model_label, PRICING_RUB_PER_1K["sync"]["yandexgpt"]))
+def price_per_1k_rub(model_label: str) -> float:
+    """Цена за 1К токенов в рублях для указанного ярлыка модели."""
+    return float(PRICING_RUB_PER_1K.get(model_label, PRICING_RUB_PER_1K["yandexgpt"]))
 
 
-def price_per_1m_rub(model_label: str, mode: str) -> float:
-    return round(price_per_1k_rub(model_label, mode) * 1000.0, 6)
+def price_per_1m_rub(model_label: str) -> float:
+    """Цена за 1М токенов в рублях для указанного ярлыка модели."""
+    return round(price_per_1k_rub(model_label) * 1000.0, 6)
 
 
 SUPPORTED_MODELS_HINT = [
-    {"label": "yandexgpt-lite", "uri": "gpt://<folder>/yandexgpt-lite[/latest]", "modes": ["sync", "async"]},
-    {"label": "yandexgpt", "uri": "gpt://<folder>/yandexgpt[/latest]", "modes": ["sync", "async"]},
-    {"label": "llama-lite", "uri": "gpt://<folder>/llama-lite[/latest]", "modes": ["sync", "async"]},
-    {"label": "llama", "uri": "gpt://<folder>/llama[/latest]", "modes": ["sync", "async"]},
-    {"label": "gpt-oss-20b", "uri": "gpt://<folder>/gpt-oss-20b", "modes": ["sync"]},
-    {"label": "gpt-oss-120b", "uri": "gpt://<folder>/gpt-oss-120b", "modes": ["sync"]},
-    {"label": "qwen3-235b", "uri": "gpt://<folder>/qwen3-235b-a22b-fp8[/latest]", "modes": ["sync"]},
+    {"label": "yandexgpt-lite", "uri": "gpt://<folder>/yandexgpt-lite[/latest]"},
+    {"label": "yandexgpt", "uri": "gpt://<folder>/yandexgpt[/latest]"},
+    {"label": "llama-lite", "uri": "gpt://<folder>/llama-lite[/latest]"},
+    {"label": "llama", "uri": "gpt://<folder>/llama[/latest]"},
+    {"label": "gpt-oss-20b", "uri": "gpt://<folder>/gpt-oss-20b"},
+    {"label": "gpt-oss-120b", "uri": "gpt://<folder>/gpt-oss-120b"},
+    {"label": "qwen3-235b", "uri": "gpt://<folder>/qwen3-235b-a22b-fp8[/latest]"},
 ]
+

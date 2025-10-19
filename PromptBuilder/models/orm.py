@@ -1,25 +1,35 @@
-"""
-models/orm.py
-ORM-модели под текущую БД:
-- error_group_groups (GG)
-- error_groups (группа, FK -> GG)
-- errors (ошибка, FK -> группа)
+﻿"""ORM‑модели каталога групп/правил.
+
+Таблицы:
+- error_group_groups (каталоги GG)
+- error_groups (группы правил; FK -> GG)
+- errors (правила; FK -> группа)
 """
 from sqlalchemy import Column, Integer, Text, Boolean, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from PromptBuilder.core.db import Base
 
 class ErrorGroupGroup(Base):
+    """Каталог групп правил (GG)."""
     __tablename__ = "error_group_groups"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Text, nullable=False)
     groups = relationship("ErrorGroup", back_populates="ggroup")
 
 class ErrorGroup(Base):
+    """Группа правил.
+
+    Поля:
+    - name — название группы\r
+    - code — код (например, G7)\r
+    - group_description — описание/подсказка для system‑prompt\r
+    - is_deleted — признак «скрыта/удалена»\r
+    - gg_id — связь с каталогом GG\r
+    """
     __tablename__ = "error_groups"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Text, nullable=False)
-    code = Column(Text, nullable=True)  # код группы, например "G7"
+    code = Column(Text, nullable=True)  
     group_description = Column(Text, nullable=True)
     is_deleted = Column(Boolean, default=False)
     gg_id = Column(Integer, ForeignKey("error_group_groups.id"), nullable=True)
@@ -33,6 +43,10 @@ class ErrorGroup(Base):
     )
 
 class Error(Base):
+    """Правило (ошибка) внутри группы.
+
+    Поля: code (уникальный), name, description, detector, FK group_id.
+    """
     __tablename__ = "errors"
     id = Column(Integer, primary_key=True, index=True)
     code = Column(Text, unique=True, nullable=False)
@@ -42,3 +56,4 @@ class Error(Base):
     group_id = Column(Integer, ForeignKey("error_groups.id"), nullable=False)
 
     group = relationship("ErrorGroup", back_populates="errors")
+

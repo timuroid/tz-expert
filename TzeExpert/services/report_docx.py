@@ -16,15 +16,17 @@ from __future__ import annotations
 
 from pathlib import Path
 from datetime import datetime
+import tempfile
 import re
 from typing import Optional, Dict, List
 
-from PromptBuilder.section_plan import SectionPlanOutput, SectionRow
+from PromptBuilder.schemas import SectionPlanOutput, SectionRow
 from TzeExpert.schemas import Step1Run
 
 
-_REPORTS_DIR = Path(__file__).resolve().parents[2] / "var" / "reports"
-_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+# Write reports to a temporary directory instead of var/reports
+_TMP_REPORTS_ROOT = Path(tempfile.gettempdir()) / "tze_reports"
+_TMP_REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 def _sanitize_filename(text: str) -> str:
@@ -56,7 +58,7 @@ def write_section_plan_docx(
     ggid: Optional[int] = None,
 ) -> Path:
     ts = datetime.now()
-    day_dir = _REPORTS_DIR / ts.strftime("%Y%m%d")
+    day_dir = _TMP_REPORTS_ROOT / ts.strftime("%Y%m%d")
     day_dir.mkdir(parents=True, exist_ok=True)
 
     safe_title = _sanitize_filename(plan.doc_title)[:80]
